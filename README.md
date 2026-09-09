@@ -72,6 +72,52 @@ Your Telegram Bot should send you a startup message:
 pasting video URL(s) bot will send you appropriate message whether they were downloaded
 or something went wrong.
 
+## 🐳 Run the pre-built images
+
+The [`Docker images`](.github/workflows/docker-images.yml) workflow builds the three
+service images on every push to `main` and on every `v*` tag, and publishes them to the
+GitHub Container Registry:
+
+| Image                                | Service                    |
+|--------------------------------------|----------------------------|
+| `ghcr.io/tuxflo/yt-dlp-bot/bot`      | Telegram bot               |
+| `ghcr.io/tuxflo/yt-dlp-bot/worker`   | Downloader                 |
+| `ghcr.io/tuxflo/yt-dlp-bot/api`      | API                        |
+
+Tags are `latest` (the default branch), the version for release tags (`v1.8.0` is
+published as `1.8.0`), and `sha-<short_commit>` for every build.
+
+Steps 1-9 of the [Quick Setup](#-quick-setup) are still needed: you need your own
+`app_bot/config.yml` and the `envs/` files, so clone the repository, then run the
+services from the published images instead of building them:
+
+```bash
+# Pull and run everything
+docker compose -f docker-compose.ghcr.yml pull
+docker compose -f docker-compose.ghcr.yml up -d && docker compose -f docker-compose.ghcr.yml logs --tail 100 -f
+
+# Pin a version instead of following 'latest'
+YT_IMAGE_TAG=1.8.0 docker compose -f docker-compose.ghcr.yml up -d
+```
+
+Notes:
+
+- **After the first workflow run, make the packages public**, otherwise `docker pull`
+  asks for credentials. Go to your GitHub profile → *Packages* → select the package →
+  *Package settings* → *Change visibility* → *Public*. Alternatively keep them private
+  and `docker login ghcr.io -u <user>` with a personal access token that has the
+  `read:packages` scope.
+- `app_bot/config.yml` holds your Telegram credentials and is not committed, so it is
+  **not** baked into the published bot image. `docker-compose.ghcr.yml` mounts it into
+  the container at runtime instead.
+- Images are built for `linux/amd64`. To also publish `linux/arm64` (Raspberry Pi, ARM
+  NAS), the workflow needs `docker/setup-qemu-action` and `docker buildx build
+  --platform linux/amd64,linux/arm64 --push`; note that emulated builds take
+  considerably longer.
+- If you forked this repository under a different account, the image prefix follows your
+  fork automatically in the workflow. For `docker-compose.ghcr.yml` set
+  `YT_IMAGE_PREFIX=ghcr.io/<your_user>/yt-dlp-bot`.
+
 ## 📺 Download a whole series, season or playlist
 
 Send the link to the series/season/playlist page prefixed with the `/series` command

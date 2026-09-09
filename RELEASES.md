@@ -27,6 +27,8 @@ Release date: September 9, 2026
 
 ## Misc
 
+- GitHub Actions workflow publishing the `bot`, `worker` and `api` images to the GitHub
+  Container Registry, plus `docker-compose.ghcr.yml` to run them without a local build.
 - `shell.nix` for NixOS users, providing `ruff`, `uv`, `yt-dlp` and `ffmpeg` for local
   linting and debugging.
 

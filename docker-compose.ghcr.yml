@@ -1,0 +1,91 @@
+# Runs the pre-built images published by '.github/workflows/docker-images.yml'
+# instead of building them locally:
+#
+#   docker compose -f docker-compose.ghcr.yml pull
+#   docker compose -f docker-compose.ghcr.yml up -d
+#
+# Override the image source and version with the environment variables below, e.g.
+# 'YT_IMAGE_TAG=1.8.0 docker compose -f docker-compose.ghcr.yml up -d'.
+#
+# Unlike a local build, 'app_bot/config.yml' is not baked into the bot image (it holds
+# your Telegram credentials and is not committed), so it is mounted at runtime.
+services:
+  yt_api:
+    container_name: yt_api
+    image: "${YT_IMAGE_PREFIX:-ghcr.io/tuxflo/yt-dlp-bot}/api:${YT_IMAGE_TAG:-latest}"
+    env_file:
+      - envs/common.env
+      - envs/api.env
+    restart: unless-stopped
+    ports:
+      - "1984:8000"
+    command: bash -c "python start.py && python main.py"
+    depends_on:
+      - yt_postgres
+      - yt_rabbitmq
+      - yt_worker
+      - yt_redis
+  yt_bot:
+    container_name: yt_bot
+    image: "${YT_IMAGE_PREFIX:-ghcr.io/tuxflo/yt-dlp-bot}/bot:${YT_IMAGE_TAG:-latest}"
+    env_file:
+      - envs/common.env
+      - envs/bot.env
+    restart: unless-stopped
+    command: >
+      bash -c "python start.py && python main.py"
+    depends_on:
+      - yt_postgres
+      - yt_rabbitmq
+      - yt_worker
+      - yt_api
+    volumes:
+      - "./app_bot/config.yml:/app/config.yml:ro"
+      - "shared-tmpfs:/tmp/download_tmpfs"
+  yt_worker:
+    container_name: yt_worker
+    image: "${YT_IMAGE_PREFIX:-ghcr.io/tuxflo/yt-dlp-bot}/worker:${YT_IMAGE_TAG:-latest}"
+    env_file:
+      - envs/common.env
+      - envs/worker.env
+    restart: unless-stopped
+    command: >
+      bash -c "python start.py && alembic upgrade head && python main.py"
+    depends_on:
+      - yt_postgres
+      - yt_rabbitmq
+    volumes:
+      - "/data/downloads:/filestorage"
+      - "shared-tmpfs:/tmp/download_tmpfs"
+      # Uncomment to use your own cookies without rebuilding the image.
+      # - "./app_worker/cookies/cookies.txt:/app/cookies/cookies.txt:ro"
+  yt_postgres:
+    container_name: yt_postgres
+    image: "postgres:15"
+    env_file:
+      - envs/common.env
+    ports:
+      - "5435:5432"
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  yt_rabbitmq:
+    image: "rabbitmq:3.12-management-alpine"
+    container_name: yt_rabbitmq
+    ports:
+      - "25672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+  yt_redis:
+    image: "redis:alpine"
+    container_name: yt_redis
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  shared-tmpfs:
+    driver: local
+    driver_opts:
+      type: "tmpfs"
+      device: "tmpfs"
+      o: "size=27168m,uid=1000"
