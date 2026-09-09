@@ -1,4 +1,5 @@
 from typing import ClassVar
+from urllib.parse import urlsplit
 
 from ytdl_opts.per_host._base import AbstractHostConfig
 
@@ -37,3 +38,10 @@ class HostConfRegistry(type):
 
         for host in hostnames:
             cls.HOST_TO_CLS_MAP[host] = host_cls
+
+
+def get_host_conf(url: str) -> AbstractHostConfig:
+    """Return host config instance matching the URL's hostname."""
+    host_to_cls_map = HostConfRegistry.get_host_to_cls_map()
+    host_cls = host_to_cls_map.get(urlsplit(url).netloc, host_to_cls_map[None])
+    return host_cls(url=url)

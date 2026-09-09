@@ -1,4 +1,5 @@
 import logging
+from typing import ClassVar
 
 from pyrogram import filters
 from pyrogram.handlers import MessageHandler
@@ -17,6 +18,7 @@ class BotLauncher:
     """Bot launcher which parses configuration file, creates and starts the bot."""
 
     REGEX_NOT_START_WITH_SLASH: str = r'^[^/]'
+    SERIES_COMMANDS: ClassVar[list[str]] = ['series', 'season', 'playlist']
 
     def __init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
@@ -46,6 +48,13 @@ class BotLauncher:
                 cb.on_start,
                 filters=filters.user(allowed_users)
                 & filters.command(['start', 'help']),
+            )
+        )
+        self._bot.add_handler(
+            MessageHandler(
+                cb.on_series,
+                filters=filters.command(self.SERIES_COMMANDS)
+                & (filters.user(allowed_users) | filters.chat(allowed_users)),
             )
         )
         self._bot.add_handler(

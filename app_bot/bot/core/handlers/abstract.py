@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from pyrogram.errors import RPCError
 from yt_shared.enums import TaskSource, TelegramChatType
 from yt_shared.schemas.base_rabbit import BaseRabbitDownloadPayload
 
@@ -21,6 +22,23 @@ class AbstractDownloadHandler(ABC):
     @abstractmethod
     async def handle(self) -> None:
         pass
+
+    async def _delete_acknowledgment_message(self) -> None:
+        if not (self._body.from_chat_id and self._body.context.ack_message_id):
+            return
+        try:
+            await self._bot.delete_messages(
+                chat_id=self._body.from_chat_id,
+                message_ids=self._body.context.ack_message_id,
+            )
+        except RPCError as err:
+            # Expected when the acknowledgment message was already deleted, e.g. after
+            # the first successful upload of several links pasted in one message.
+            self._log.warning(
+                'Could not delete the acknowledgment message id "%s": %s',
+                self._body.context.ack_message_id,
+                err,
+            )
 
     def _get_sender_id(self) -> int | None:
         if self._body.context.source is TaskSource.API:

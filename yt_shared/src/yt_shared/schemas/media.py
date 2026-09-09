@@ -32,6 +32,13 @@ class InbMediaPayload(StrictRealBaseModel):
     custom_filename: str | None
     automatic_extension: bool
     added_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    playlist: bool = False
+    """Download the whole playlist/series/season behind the URL.
+
+    When True, the worker does not download anything itself but expands the URL into
+    its playlist entries and publishes each of them back as a separate payload with
+    'playlist' set to False.
+    """
 
 
 class BaseMedia(StrictRealBaseModel, ABC):

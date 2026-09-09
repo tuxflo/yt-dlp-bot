@@ -29,6 +29,13 @@ except ImportError:
         VIDEO_YTDL_OPTS,
     )
 
+# Imported separately so that an existing 'user.py' copied from an older 'default.py'
+# (without this option) keeps overriding all the other options.
+try:
+    from ytdl_opts.user import PLAYLIST_YTDL_OPTS
+except ImportError:
+    from ytdl_opts.default import PLAYLIST_YTDL_OPTS
+
 
 class BaseHostConfModel(BaseModel):
     # TODO: Add validators.
@@ -61,6 +68,7 @@ class AbstractHostConfig:
     KEEP_VIDEO_OPTION: str = '--keep-video'
 
     DEFAULT_YTDL_OPTS: tuple[str, ...] = DEFAULT_YTDL_OPTS
+    PLAYLIST_YTDL_OPTS: tuple[str, ...] = PLAYLIST_YTDL_OPTS
 
     AUDIO_YTDL_OPTS: tuple[str, ...] = AUDIO_YTDL_OPTS
     AUDIO_FORMAT_YTDL_OPTS: tuple[str, ...] = AUDIO_FORMAT_YTDL_OPTS
@@ -113,6 +121,10 @@ class AbstractHostConfig:
             curr_tmp_dir / ytdl_opts['outtmpl']['default']
         )
         return ytdl_opts
+
+    def build_playlist_ytdl_opts(self) -> dict:
+        """Build options used to list playlist/series entries without downloading."""
+        return cli_to_api(list(deepcopy(self.PLAYLIST_YTDL_OPTS)))
 
     @abstractmethod
     def _build_custom_ytdl_video_opts(self) -> tuple[str, ...]:

@@ -8,6 +8,8 @@ from yt_shared.rabbit import get_rabbitmq
 from yt_shared.rabbit.rabbit_config import (
     ERROR_EXCHANGE,
     ERROR_QUEUE,
+    INFO_EXCHANGE,
+    INFO_QUEUE,
     INPUT_EXCHANGE,
     INPUT_QUEUE,
     SUCCESS_EXCHANGE,
@@ -15,6 +17,7 @@ from yt_shared.rabbit.rabbit_config import (
 )
 from yt_shared.schemas.error import ErrorDownloadGeneralPayload, ErrorDownloadPayload
 from yt_shared.schemas.media import InbMediaPayload
+from yt_shared.schemas.playlist import PlaylistInfoPayload
 from yt_shared.schemas.success import SuccessDownloadPayload
 from yt_shared.utils.common import Singleton
 
@@ -43,6 +46,14 @@ class RmqPublisher(metaclass=Singleton):
         err_message = aio_pika.Message(body=error_payload.model_dump_json().encode())
         confirm = await err_exchange.publish(
             err_message, routing_key=ERROR_QUEUE, mandatory=True
+        )
+        return self._is_sent(confirm)
+
+    async def send_playlist_info(self, info_payload: PlaylistInfoPayload) -> bool:
+        message = aio_pika.Message(body=info_payload.model_dump_json().encode())
+        exchange = self._rabbit_mq.exchanges[INFO_EXCHANGE]
+        confirm = await exchange.publish(
+            message, routing_key=INFO_QUEUE, mandatory=True
         )
         return self._is_sent(confirm)
 

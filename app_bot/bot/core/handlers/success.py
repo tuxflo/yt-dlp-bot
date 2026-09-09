@@ -46,13 +46,6 @@ class SuccessDownloadHandler(AbstractDownloadHandler):
         finally:
             await self._delete_acknowledgment_message()
 
-    async def _delete_acknowledgment_message(self) -> None:
-        if self._body.from_chat_id and self._body.context.ack_message_id:
-            await self._bot.delete_messages(
-                chat_id=self._body.from_chat_id,
-                message_ids=self._body.context.ack_message_id,
-            )
-
     async def _set_upload_message(self, media_object: BaseMedia) -> None:
         if not (self._body.from_chat_id and self._body.context.ack_message_id):
             return

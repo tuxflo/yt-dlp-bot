@@ -78,6 +78,7 @@ class TaskService:
             ack_message_id=None,
             custom_filename=task.custom_filename,
             automatic_extension=task.automatic_extension,
+            playlist=task.playlist,
         )
         if not await publisher.send_for_download(payload):
             raise TaskServiceError('Failed to create task')

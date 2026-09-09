@@ -24,6 +24,7 @@ class RabbitPayloadType(StrChoiceEnum):
     DOWNLOAD_ERROR = 'DOWNLOAD_ERROR'
     GENERAL_ERROR = 'GENERAL_ERROR'
     SUCCESS = 'SUCCESS'
+    PLAYLIST_INFO = 'PLAYLIST_INFO'
 
 
 class TelegramChatType(StrChoiceEnum):

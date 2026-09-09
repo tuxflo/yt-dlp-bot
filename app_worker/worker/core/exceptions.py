@@ -17,3 +17,7 @@ class DownloadVideoServiceError(BaseVideoServiceError):
 
 class MediaDownloaderError(Exception):
     pass
+
+
+class PlaylistExtractorError(Exception):
+    pass

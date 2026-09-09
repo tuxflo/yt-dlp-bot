@@ -16,3 +16,4 @@ class URL(StrictRealBaseModel):
     ack_message_id: int
     save_to_storage: bool
     download_media_type: DownMediaType
+    playlist: bool = False

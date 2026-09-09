@@ -5,7 +5,6 @@ import time
 from collections.abc import Coroutine
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from yt_shared.enums import DownMediaType, TaskStatus
 from yt_shared.models import Task
@@ -22,7 +21,7 @@ from worker.core.tasks.encode import EncodeToH264Task
 from worker.core.tasks.ffprobe_context import GetFfprobeContextTask
 from worker.core.tasks.thumbnail import MakeThumbnailTask
 from ytdl_opts.per_host._base import AbstractHostConfig
-from ytdl_opts.per_host._registry import HostConfRegistry
+from ytdl_opts.per_host._registry import get_host_conf
 
 
 class MediaService:
@@ -58,10 +57,7 @@ class MediaService:
         return media
 
     def _get_host_conf(self) -> AbstractHostConfig:
-        url = self._task.url
-        host_to_cls_map = HostConfRegistry.get_host_to_cls_map()
-        host_cls = host_to_cls_map.get(urlsplit(url).netloc, host_to_cls_map[None])
-        return host_cls(url=url)
+        return get_host_conf(self._task.url)
 
     async def _start_download(self, host_conf: AbstractHostConfig) -> DownMedia:
         try:

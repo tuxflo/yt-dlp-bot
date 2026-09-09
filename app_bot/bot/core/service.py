@@ -37,6 +37,7 @@ class UrlService:
             download_media_type=url.download_media_type,
             custom_filename=None,
             automatic_extension=False,
+            playlist=url.playlist,
         )
         is_sent = await self._rmq_publisher.send_for_download(payload)
         if not is_sent:
@@ -59,7 +60,10 @@ class UrlParser:
         return preprocessed_urls
 
     def parse_urls(
-        self, urls: list[str], context: dict[str, Message | UserSchema]
+        self,
+        urls: list[str],
+        context: dict[str, Message | UserSchema],
+        playlist: bool = False,
     ) -> list[URL]:
         message: Message = context['message']
         user: UserSchema = context['user']
@@ -76,6 +80,7 @@ class UrlParser:
                 ack_message_id=ack_message.id,
                 save_to_storage=user.save_to_storage,
                 download_media_type=user.download_media_type,
+                playlist=playlist,
             )
             for orig_url, url in self._preprocess_urls(urls).items()
         ]

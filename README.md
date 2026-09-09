@@ -2,7 +2,7 @@
 
 Simple and reliable self-hosted Video Download Telegram Bot.
 
-Version: 1.7.2. [Release details](RELEASES.md).
+Version: 1.8.0. [Release details](RELEASES.md).
 
 ![frames](.assets/download_success.png)
 
@@ -16,6 +16,7 @@ Version: 1.7.2. [Release details](RELEASES.md).
 ## 😂 Features
 
 * Download audio and free videos with Creative Commons (CC) License from [yt-dlp](https://github.com/yt-dlp/yt-dlp) sites to your storage.
+* Download a whole series, season or playlist with the `/series` command.
 * Upload downloaded media to Telegram.
 * Interact with the bot in private or group chats.
 * Trigger video downloads via link to the API.
@@ -71,6 +72,30 @@ Your Telegram Bot should send you a startup message:
 pasting video URL(s) bot will send you appropriate message whether they were downloaded
 or something went wrong.
 
+## 📺 Download a whole series, season or playlist
+
+Send the link to the series/season/playlist page prefixed with the `/series` command
+(`/season` and `/playlist` do the same):
+
+```
+/series https://arte.tv/de/videos/RC-027708/happy-valley
+```
+
+The worker resolves the link into the single videos behind it and queues every one of
+them as its own download task, so each episode is reported, stored and uploaded
+separately. Nested collections are flattened, so the example above queues all 18
+episodes of all 3 seasons.
+
+Notes:
+
+- Without the command a series link is downloaded as a single video (the first entry),
+  which is the previous behaviour of the bot.
+- At most `MAX_PLAYLIST_ITEMS` videos (default `100`, see `envs/worker.env`) are queued
+  from one link. You're told in the reply when the limit truncated the list.
+- Several links can be passed at once: `/series <URL_1> <URL_2>`.
+- Downloads run with the configured `MAX_SIMULTANEOUS_DOWNLOADS` limit, so a long series
+  is downloaded gradually and not all at once.
+
 ## 💻 Advanced setup
 
 1. If you want to change `yt-dlp` download options, go to the `app_worker/ytdl_opts`
@@ -94,6 +119,10 @@ or something went wrong.
    variable.
 5. If the website you want to download from requires authentication you can use your cookies by putting them into
    the `app_worker/cookies/cookies.txt` file in the Netscape format.
+6. Maximum number of videos queued from a single `/series` link is 100. Change
+   the `MAX_PLAYLIST_ITEMS` variable in `envs/worker.env` to desired value.
+7. On NixOS run `nix-shell` in the repository root to get `ruff`, `uv`, `yt-dlp` and
+   `ffmpeg` for linting (`ruff check .`, `ruff format --diff .`) and local debugging.
 
 ## 🛑 Failed download
 
@@ -114,6 +143,10 @@ details
 By default, API service will run on your `localhost` and `1984` port. API endpoint
 documentations lives at `http://127.0.0.1:1984/docs`.
 
+Note that a `POST /v1/tasks` request with `"playlist": true` creates one task per video
+behind the link, none of which uses the task `id` returned by the request. Use
+`GET /v1/tasks` to find them.
+
 | Endpoint                                                           | Method   | Description                                                                                                                                |
 |--------------------------------------------------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | `/status`                                                          | `GET`    | Get API healthcheck status, usually response is `{"status": "OK"}`                                                                         |
@@ -122,7 +155,7 @@ documentations lives at `http://127.0.0.1:1984/docs`.
 | `/v1/tasks/f828714a-5c50-45de-87c0-3b51b7e04039?include_meta=True` | `GET`    | Get info about task by ID                                                                                                                  |
 | `/v1/tasks/latest?include_meta=True`                               | `GET`    | Get info about latest task                                                                                                                 |
 | `/v1/tasks/f828714a-5c50-45de-87c0-3b51b7e04039`                   | `DELETE` | Delete task by ID                                                                                                                          |
-| `/v1/tasks`                                                        | `POST`   | Create a download task by sending json payload `{"url": "<URL>"}`                                                                          |
+| `/v1/tasks`                                                        | `POST`   | Create a download task by sending json payload `{"url": "<URL>"}`. Add `"playlist": true` to queue every video behind a series/playlist URL |
 | `/v1/tasks/stats`                                                  | `GET`    | Get overall tasks stats                                                                                                                    |
 
 ### API examples
@@ -160,7 +193,8 @@ documentations lives at `http://127.0.0.1:1984/docs`.
        "download_media_type": "AUDIO_VIDEO",
        "save_to_storage": false,
        "custom_filename": "cool.mp4",
-       "automatic_extension": false
+       "automatic_extension": false,
+       "playlist": false
    }
    ```
    Response

@@ -1,10 +1,11 @@
-from pydantic import DirectoryPath, field_validator
+from pydantic import DirectoryPath, PositiveInt, field_validator
 from yt_shared.config import CommonSettings
 
 
 class WorkerSettings(CommonSettings):
     APPLICATION_NAME: str
     MAX_SIMULTANEOUS_DOWNLOADS: int
+    MAX_PLAYLIST_ITEMS: PositiveInt = 100
     STORAGE_PATH: DirectoryPath
     THUMBNAIL_FRAME_SECOND: float
     INSTAGRAM_ENCODE_TO_H264: bool

@@ -1,3 +1,37 @@
+## Release 1.8
+
+Release date: September 9, 2026
+
+## New Features
+
+- Download a whole series, season or playlist by sending the link with the `/series`
+  command (aliases: `/season`, `/playlist`), e.g.
+  ```
+  /series https://arte.tv/de/videos/RC-027708/happy-valley
+  ```
+  The worker resolves the link into the single videos behind it (flattening nested
+  collections, e.g. one collection per season) and queues each of them as its own
+  download task. The bot replies with the number of queued videos and then reports every
+  episode separately, as with any other download.
+- Same feature via the API by adding `"playlist": true` to the `POST /v1/tasks` payload.
+
+## Important
+
+- New `MAX_PLAYLIST_ITEMS` variable in `envs/worker.env` (default `100`) caps how many
+  videos are queued from a single playlist link. Add it to your `envs/worker.env` or
+  leave it out to use the default.
+- A new `info.q` queue and `info.dx` exchange are declared automatically on startup, no
+  manual RabbitMQ action is needed.
+- If you use a custom `app_worker/ytdl_opts/user.py`, the new `PLAYLIST_YTDL_OPTS`
+  option set is taken from `default.py` unless you copy it over to your `user.py`.
+
+## Misc
+
+- `shell.nix` for NixOS users, providing `ruff`, `uv`, `yt-dlp` and `ffmpeg` for local
+  linting and debugging.
+
+---
+
 ## Release 1.7
 
 Release date: May 30, 2024
