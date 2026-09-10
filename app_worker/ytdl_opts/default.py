@@ -36,6 +36,16 @@ DEFAULT_YTDL_OPTS: Final[_OptsType] = (
     '--concurrent-fragments',
     settings.MAX_DOWNLOAD_THREADS,
     '--ignore-errors',
+    # Without an explicit sleep, 'yt-dlp' retries immediately and burns every attempt
+    # within a couple of seconds, which is useless against a CDN that throttles or
+    # drops connections (e.g. arte.tv when downloading a series). Back off
+    # exponentially instead, capped at 15 seconds per attempt.
+    '--fragment-retries',
+    '15',
+    '--retry-sleep',
+    'http:exp=1:15',
+    '--retry-sleep',
+    'fragment:exp=1:15',
     '--verbose',
     *get_cookies_opts_if_not_empty(),
 )
