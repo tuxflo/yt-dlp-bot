@@ -142,6 +142,37 @@ Notes:
 - Downloads run with the configured `MAX_SIMULTANEOUS_DOWNLOADS` limit, so a long series
   is downloaded gradually and not all at once.
 
+### Failed episodes
+
+A failed download is re-queued automatically after `RESEND_DELAY_MS` (default 60
+seconds), up to `CONSUMER_NUMBER_OF_RETRY` times (default 2) — three attempts in total.
+Only after the last attempt fails is an error reported to Telegram, so a video that
+succeeds on the second try is never reported as broken. Both variables live in
+`envs/common.env`.
+
+If an episode still fails after that, **send the same series link again**. Entries that
+were already downloaded, or that are still queued, are skipped, so only what is actually
+missing gets downloaded:
+
+```
+📺 Happy Valley
+🔢 18 videos found
+⏭️ 15 already downloaded, skipped
+⬇️ 3 queued
+⏳ Each video is downloaded as a separate task.
+```
+
+Notes:
+
+- Skipping is based on the task history in the database, matched on the exact episode
+  URL. Users configured with `save_to_database: !!bool False` have their tasks purged,
+  so for them nothing is ever skipped and re-sending downloads the whole series again.
+- Only *failed* entries are re-queued. Entries still `PENDING` or `PROCESSING` are
+  skipped too, so re-sending a link while the first run is still going does not queue
+  the same video twice.
+- To deliberately download something again, send the single video URL instead. A plain
+  link is always downloaded and never checked against the history.
+
 ## 💻 Advanced setup
 
 1. If you want to change `yt-dlp` download options, go to the `app_worker/ytdl_opts`

@@ -13,7 +13,8 @@ class PlaylistInfoHandler(AbstractDownloadHandler):
 
     _body: PlaylistInfoPayload
 
-    _MSG_TPL = '📺 {title}\n🔢 {queued}\n⏳ {footer}'
+    _FOOTER = 'Each video is downloaded as a separate task.'
+    _NOTHING_TO_DO_FOOTER = 'Nothing to download.'
 
     async def handle(self) -> None:
         await self._delete_acknowledgment_message()
@@ -32,16 +33,23 @@ class PlaylistInfoHandler(AbstractDownloadHandler):
             await self._bot.send_message(**kwargs)
 
     def _format_playlist_info(self) -> str:
-        title = html.escape(self._body.title or self._body.url)
         queued_count = self._body.queued_count
+        skipped_count = self._body.skipped_count
         total_count = self._body.total_count
 
-        queued = f'{queued_count} video{"s" if queued_count != 1 else ""} queued'
-        if total_count > queued_count:
-            queued = f'{queued} out of {total_count} (limit reached)'
+        lines = [f'📺 {bold(html.escape(self._body.title or self._body.url))}']
 
-        return self._MSG_TPL.format(
-            title=bold(title),
-            queued=bold(queued),
-            footer='Each video is downloaded as a separate task.',
+        found = f'{total_count} video{"s" if total_count != 1 else ""} found'
+        truncated = total_count > queued_count + skipped_count
+        if truncated:
+            found = f'{found}, limited to {queued_count + skipped_count}'
+        lines.append(f'🔢 {bold(found)}')
+
+        if skipped_count:
+            lines.append(f'⏭️ {bold(f"{skipped_count} already downloaded")}, skipped')
+
+        lines.append(f'⬇️ {bold(f"{queued_count} queued")}')
+        lines.append(
+            f'⏳ {self._FOOTER if queued_count else self._NOTHING_TO_DO_FOOTER}'
         )
+        return '\n'.join(lines)

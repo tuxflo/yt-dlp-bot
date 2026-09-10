@@ -14,3 +14,5 @@ class PlaylistInfoPayload(BaseRabbitDownloadPayload):
     title: StrictStr | None
     total_count: StrictInt
     queued_count: StrictInt
+    skipped_count: StrictInt = 0
+    """Entries skipped because they were already downloaded or are still queued."""

@@ -47,6 +47,22 @@ class TaskRepository:
         await self._db.commit()
         return task
 
+    async def get_urls_with_status(
+        self, urls: Sequence[str], statuses: Sequence[TaskStatus]
+    ) -> set[str]:
+        """Return the subset of URLs that already have a task in one of the statuses.
+
+        Used to skip playlist entries that were downloaded before or are still queued.
+        """
+        if not urls:
+            return set()
+
+        stmt = select(distinct(Task.url)).where(
+            Task.url.in_(urls) & Task.status.in_(statuses)
+        )
+        result = await self._db.execute(stmt)
+        return set(result.scalars().all())
+
     async def save_file_cache(self, file_id: str | UUID, cache: CacheSchema) -> None:
         stmt = insert(Cache).values(
             cache_id=cache.cache_id,

@@ -4,6 +4,7 @@ from pydantic import (
     ConfigDict,
     DirectoryPath,
     NewPath,
+    NonNegativeInt,
     PositiveInt,
     ValidationInfo,
     field_validator,
@@ -41,7 +42,9 @@ class CommonSettings(BaseSettings):
     def RABBITMQ_URI(self) -> str:  # noqa: N802
         return f'amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/'
 
-    CONSUMER_NUMBER_OF_RETRY: PositiveInt = 2
+    # How many times a failed download is re-queued, and how long to wait in between.
+    # Set the retry count to 0 to report a failure right away without retrying.
+    CONSUMER_NUMBER_OF_RETRY: NonNegativeInt = 2
     RESEND_DELAY_MS: PositiveInt = 60000
 
     LOG_LEVEL: str

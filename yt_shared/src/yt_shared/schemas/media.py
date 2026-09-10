@@ -32,6 +32,8 @@ class InbMediaPayload(StrictRealBaseModel):
     custom_filename: str | None
     automatic_extension: bool
     added_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    retry_count: int = 0
+    """How many times this download was already re-queued after a failure."""
     playlist: bool = False
     """Download the whole playlist/series/season behind the URL.
 

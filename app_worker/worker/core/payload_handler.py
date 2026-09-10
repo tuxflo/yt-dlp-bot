@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import traceback
+from typing import Final
 
 from yt_dlp import version as ytdlp_version
 from yt_shared.db.session import get_db
+from yt_shared.enums import TaskStatus
 from yt_shared.models import Task
 from yt_shared.rabbit.publisher import RmqPublisher
 from yt_shared.repositories.task import TaskRepository
@@ -11,13 +13,24 @@ from yt_shared.schemas.error import ErrorDownloadGeneralPayload, ErrorDownloadPa
 from yt_shared.schemas.media import DownMedia, InbMediaPayload
 from yt_shared.schemas.playlist import PlaylistInfoPayload
 from yt_shared.schemas.success import SuccessDownloadPayload
+from yt_shared.utils.tasks.tasks import create_task
 
 from worker.core.config import settings
 from worker.core.downloader import MediaDownloader
 from worker.core.exceptions import DownloadVideoServiceError, GeneralVideoServiceError
 from worker.core.media_service import MediaService
-from worker.core.playlist import Playlist, PlaylistExtractor
+from worker.core.playlist import Playlist, PlaylistEntry, PlaylistExtractor
 from ytdl_opts.per_host._registry import get_host_conf
+
+_MS_IN_SECOND: Final[int] = 1000
+
+# A playlist entry is re-queued only when its previous task failed. Anything else
+# either succeeded or is still on its way through the pipeline.
+_ALREADY_HANDLED_STATUSES: Final[tuple[TaskStatus, ...]] = (
+    TaskStatus.DONE,
+    TaskStatus.PENDING,
+    TaskStatus.PROCESSING,
+)
 
 
 class InboundPayloadHandler:
@@ -59,7 +72,7 @@ class InboundPayloadHandler:
             try:
                 media, task = await media_service.process()
             except DownloadVideoServiceError as err:
-                await self._send_failed_video_download_task(err, media_payload)
+                await self._handle_download_failure(err, media_payload)
                 return
 
             if not media or not task:
@@ -70,6 +83,66 @@ class InboundPayloadHandler:
                 self._log.error(err_msg)
                 raise RuntimeError(err_msg)
             await self._send_finished_task(task, media, media_payload)
+
+    async def _handle_download_failure(
+        self, err: DownloadVideoServiceError, media_payload: InbMediaPayload
+    ) -> None:
+        """Re-queue the failed download or report it if no attempts are left.
+
+        Args:
+            err (DownloadVideoServiceError): The error that occurred during download.
+            media_payload (InbMediaPayload): The inbound media payload that failed.
+
+        """
+        if media_payload.retry_count >= settings.CONSUMER_NUMBER_OF_RETRY:
+            self._log.error(
+                'Giving up on %s after %d attempts',
+                media_payload.url,
+                media_payload.retry_count + 1,
+            )
+            await self._send_failed_video_download_task(err, media_payload)
+            return
+
+        delay = settings.RESEND_DELAY_MS / _MS_IN_SECOND
+        self._log.warning(
+            'Download of %s failed, retrying in %.0fs (attempt %d of %d)',
+            media_payload.url,
+            delay,
+            media_payload.retry_count + 2,
+            settings.CONSUMER_NUMBER_OF_RETRY + 1,
+        )
+        task_name = f'Retry download of {media_payload.url}'
+        create_task(
+            self._resend_for_download(media_payload=media_payload, delay=delay),
+            task_name=task_name,
+            logger=self._log,
+            exception_message='Task "%s" raised an exception',
+            exception_message_args=(task_name,),
+        )
+
+    async def _resend_for_download(
+        self, media_payload: InbMediaPayload, delay: float
+    ) -> None:
+        """Publish the payload again after a delay, marked as one more attempt.
+
+        Args:
+            media_payload (InbMediaPayload): The inbound media payload to re-publish.
+            delay (float): Seconds to wait before re-publishing.
+
+        """
+        await asyncio.sleep(delay)
+        retry_payload = media_payload.model_copy(
+            update={
+                # The previous task is already marked as failed, so a retry needs its
+                # own task instead of reusing the existing, non-pending one.
+                'id': None,
+                'retry_count': media_payload.retry_count + 1,
+            }
+        )
+        if not await self._rmq_publisher.send_for_download(retry_payload):
+            self._log.error(
+                'Failed to publish retry of %s to message broker', media_payload.url
+            )
 
     async def _handle_playlist(self, media_payload: InbMediaPayload) -> None:
         """Expand a playlist/series URL and queue each entry as its own download.
@@ -86,8 +159,11 @@ class InboundPayloadHandler:
             ),
         )
 
+        entries = await self._filter_already_handled(playlist.entries)
+        skipped_count = len(playlist.entries) - len(entries)
+
         queued_count = 0
-        for entry in playlist.entries:
+        for entry in entries:
             entry_payload = media_payload.model_copy(
                 update={
                     'id': None,
@@ -108,11 +184,46 @@ class InboundPayloadHandler:
                 )
 
         await self._send_playlist_info(
-            playlist=playlist, media_payload=media_payload, queued_count=queued_count
+            playlist=playlist,
+            media_payload=media_payload,
+            queued_count=queued_count,
+            skipped_count=skipped_count,
         )
 
+    async def _filter_already_handled(
+        self, entries: list[PlaylistEntry]
+    ) -> list[PlaylistEntry]:
+        """Drop entries that were downloaded before or are still queued.
+
+        Re-sending a series link therefore downloads only what is actually missing.
+        Previously failed entries are kept so that they are retried.
+
+        Args:
+            entries (list[PlaylistEntry]): All entries found behind the playlist URL.
+
+        """
+        async for session in get_db():
+            handled_urls = await TaskRepository(db=session).get_urls_with_status(
+                urls=[entry.url for entry in entries],
+                statuses=_ALREADY_HANDLED_STATUSES,
+            )
+
+        if not handled_urls:
+            return entries
+
+        self._log.info(
+            'Skipping %d of %d playlist entries, already downloaded or queued',
+            len(handled_urls),
+            len(entries),
+        )
+        return [entry for entry in entries if entry.url not in handled_urls]
+
     async def _send_playlist_info(
-        self, playlist: Playlist, media_payload: InbMediaPayload, queued_count: int
+        self,
+        playlist: Playlist,
+        media_payload: InbMediaPayload,
+        queued_count: int,
+        skipped_count: int,
     ) -> None:
         """Send expanded playlist context back to the bot.
 
@@ -120,6 +231,7 @@ class InboundPayloadHandler:
             playlist (Playlist): The expanded playlist.
             media_payload (InbMediaPayload): The inbound media payload.
             queued_count (int): Number of entries actually sent for download.
+            skipped_count (int): Number of entries skipped as already handled.
 
         """
         info_payload = PlaylistInfoPayload(
@@ -132,6 +244,7 @@ class InboundPayloadHandler:
             title=playlist.title,
             total_count=playlist.total_count,
             queued_count=queued_count,
+            skipped_count=skipped_count,
         )
         await self._rmq_publisher.send_playlist_info(info_payload)
 
@@ -169,13 +282,17 @@ class InboundPayloadHandler:
 
         """
         task = err.task
+        attempts = media_payload.retry_count + 1
+        message = 'Download error'
+        if attempts > 1:
+            message = f'{message} after {attempts} attempts'
         err_payload = ErrorDownloadPayload(
             task_id=task.id,
             message_id=task.message_id,
             from_chat_id=media_payload.from_chat_id,
             from_chat_type=media_payload.from_chat_type,
             from_user_id=media_payload.from_user_id,
-            message='Download error',
+            message=message,
             url=media_payload.url,
             context=media_payload,
             yt_dlp_version=ytdlp_version.__version__,

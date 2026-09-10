@@ -14,6 +14,17 @@ Release date: September 9, 2026
   download task. The bot replies with the number of queued videos and then reports every
   episode separately, as with any other download.
 - Same feature via the API by adding `"playlist": true` to the `POST /v1/tasks` payload.
+- Failed downloads are now retried automatically. The worker re-queues them after
+  `RESEND_DELAY_MS` (default 60s), up to `CONSUMER_NUMBER_OF_RETRY` times (default 2),
+  and only reports the failure to Telegram after the last attempt. Both variables
+  already existed in the configuration but were never used.
+- Re-sending a series link downloads only what is missing: entries that already have a
+  completed task, or one that is still queued, are skipped. Failed entries are
+  re-queued, so recovering from a partly failed series is just sending the link again.
+- More resilient downloads: `yt-dlp` had no retry backoff configured at all, so all
+  retries fired within a couple of seconds. Fragment and HTTP retries now back off
+  exponentially (2s → 15s), which fixes dropped connections against throttling CDNs
+  such as arte.tv when downloading a whole series.
 
 ## Important
 
@@ -22,6 +33,9 @@ Release date: September 9, 2026
   leave it out to use the default.
 - A new `info.q` queue and `info.dx` exchange are declared automatically on startup, no
   manual RabbitMQ action is needed.
+- New `CONSUMER_NUMBER_OF_RETRY` and `RESEND_DELAY_MS` variables in `envs/common.env`.
+  Both fall back to their previous defaults when absent, so adding them is optional.
+  `CONSUMER_NUMBER_OF_RETRY` now accepts `0` to turn retrying off.
 - If you use a custom `app_worker/ytdl_opts/user.py`, the new `PLAYLIST_YTDL_OPTS`
   option set is taken from `default.py` unless you copy it over to your `user.py`.
 
