@@ -60,6 +60,11 @@ class AbstractHostConfig:
     ALLOW_NULL_HOSTNAMES: bool | None = None
     HOSTNAMES: tuple[str, ...] | None = None
 
+    # Shown when a '/series' URL of this host cannot be read as a playlist, to point
+    # at the link that does work. Hosts where the overview page is easy to confuse
+    # with an episode listing should set it.
+    PLAYLIST_URL_HINT: str | None = None
+
     CUSTOM_VIDEO_YTDL_OPTS: list[str] | None = None
 
     ENCODE_AUDIO: bool | None = None

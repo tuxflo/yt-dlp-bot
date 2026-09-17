@@ -17,6 +17,13 @@ class KikaHost(AbstractHostConfig, metaclass=HostConfRegistry):
     ENCODE_AUDIO = False
     ENCODE_VIDEO = False
 
+    PLAYLIST_URL_HINT = (
+        'For kika.de use the show page, for example\n'
+        'https://www.kika.de/mako-einfach-meerjungfrau/mako-einfach-meerjungfrau-100\n'
+        'instead of the episode listing\n'
+        'https://www.kika.de/mako-einfach-meerjungfrau/videos/alle-folgen-302'
+    )
+
     def build_config(
         self, media_type: DownMediaType, curr_tmp_dir: Path
     ) -> KikaHostModel:

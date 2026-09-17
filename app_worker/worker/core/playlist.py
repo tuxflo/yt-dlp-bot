@@ -34,6 +34,15 @@ class PlaylistExtractor:
     _PLAYLIST_TYPE = 'playlist'
     _URL_KEYS = ('webpage_url', 'url', 'original_url')
 
+    _INVALID_URL_MSG = (
+        'Invalid series URL: no series, season or playlist could be read from this '
+        'link. Use the show or series overview page, not an episode listing page.'
+    )
+    _SINGLE_VIDEO_MSG = (
+        'This link is a single video, not a series, season or playlist. '
+        'Send it without the /series command to download it.'
+    )
+
     def __init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
 
@@ -46,15 +55,12 @@ class PlaylistExtractor:
             meta: dict | None = ytdl.extract_info(url, download=False)
 
         if not meta:
-            err_msg = 'Nothing found behind the URL. Is it valid?'
+            err_msg = self._invalid_url_error(host_conf)
             self._log.error('%s Meta: %s', err_msg, meta)
             raise PlaylistExtractorError(err_msg)
 
         if meta.get('_type') != self._PLAYLIST_TYPE:
-            raise PlaylistExtractorError(
-                'URL does not point to a playlist, series or season. '
-                'Send it as a usual link to download a single video.'
-            )
+            raise PlaylistExtractorError(self._SINGLE_VIDEO_MSG)
 
         entries = self._flatten_entries(meta)
         if not entries:
@@ -77,6 +83,12 @@ class PlaylistExtractor:
             total_count=total_count,
             entries=entries,
         )
+
+    def _invalid_url_error(self, host_conf: AbstractHostConfig) -> str:
+        """Build the error text, adding the host's hint about the right link."""
+        if host_conf.PLAYLIST_URL_HINT:
+            return f'{self._INVALID_URL_MSG}\n\n{host_conf.PLAYLIST_URL_HINT}'
+        return self._INVALID_URL_MSG
 
     def _flatten_entries(self, meta: dict) -> list[PlaylistEntry]:
         """Collect entries of a playlist, descending into nested playlists."""
