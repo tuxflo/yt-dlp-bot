@@ -139,8 +139,10 @@ Notes:
 - At most `MAX_PLAYLIST_ITEMS` videos (default `100`, see `envs/worker.env`) are queued
   from one link. You're told in the reply when the limit truncated the list.
 - Several links can be passed at once: `/series <URL_1> <URL_2>`.
-- Downloads run with the configured `MAX_SIMULTANEOUS_DOWNLOADS` limit, so a long series
-  is downloaded gradually and not all at once.
+- Downloads run with the configured `MAX_SIMULTANEOUS_DOWNLOADS` limit (default `2`, see
+  `envs/worker.env`), so a long series is downloaded a couple of episodes at a time
+  rather than all at once. Queueing 68 episodes does not start 68 downloads; the rest
+  wait their turn. Raise the value if your machine has headroom.
 
 ### Finding the right series link
 

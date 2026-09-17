@@ -30,6 +30,15 @@ Release date: September 9, 2026
   exponentially (2s → 15s), which fixes dropped connections against throttling CDNs
   such as arte.tv when downloading a whole series.
 
+## Fixes
+
+- `MAX_SIMULTANEOUS_DOWNLOADS` is now actually enforced. It was applied as the RabbitMQ
+  prefetch count, but the worker acknowledges a message before starting its download, so
+  the broker kept delivering and every delivery is handled in its own task. The real
+  limit was the size of the default asyncio executor, `min(32, cpu_count + 4)`, which is
+  8 downloads at once on a 4 core machine regardless of the configured value. Barely
+  noticeable when pasting a couple of links, but a series queues dozens at once.
+
 ## Important
 
 - New `MAX_PLAYLIST_ITEMS` variable in `envs/worker.env` (default `100`) caps how many

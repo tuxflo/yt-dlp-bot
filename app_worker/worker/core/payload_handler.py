@@ -39,6 +39,15 @@ class InboundPayloadHandler:
         self._log = logging.getLogger(self.__class__.__name__)
         self._rmq_publisher = RmqPublisher()
         self._playlist_extractor = PlaylistExtractor()
+        # The RabbitMQ prefetch count cannot bound the downloads: a message is
+        # acknowledged before its download starts, so the broker keeps delivering and
+        # every delivery is handled in its own task. Without this semaphore a 68
+        # episode series starts as many downloads at once as the default asyncio
+        # executor has threads, which is min(32, cpu_count + 4) and unrelated to
+        # anything configured.
+        self._download_semaphore = asyncio.Semaphore(
+            settings.MAX_SIMULTANEOUS_DOWNLOADS
+        )
 
     async def handle(self, media_payload: InbMediaPayload) -> None:
         """Handle the inbound media payload.
@@ -70,7 +79,8 @@ class InboundPayloadHandler:
                 task_repository=TaskRepository(db=session),
             )
             try:
-                media, task = await media_service.process()
+                async with self._download_semaphore:
+                    media, task = await media_service.process()
             except DownloadVideoServiceError as err:
                 await self._handle_download_failure(err, media_payload)
                 return
