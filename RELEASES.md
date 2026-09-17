@@ -21,6 +21,10 @@ Release date: September 9, 2026
 - Re-sending a series link downloads only what is missing: entries that already have a
   completed task, or one that is still queued, are skipped. Failed entries are
   re-queued, so recovering from a partly failed series is just sending the link again.
+- Host configuration for the German KiKA (`kika.de`). KiKA offers every resolution both
+  as HLS and as a plain MP4, and now the plain file is preferred: one request instead of
+  several hundred fragments at the same resolution, which makes downloading a whole
+  series much less likely to fail.
 - More resilient downloads: `yt-dlp` had no retry backoff configured at all, so all
   retries fired within a couple of seconds. Fragment and HTTP retries now back off
   exponentially (2s → 15s), which fixes dropped connections against throttling CDNs

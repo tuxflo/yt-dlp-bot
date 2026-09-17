@@ -142,6 +142,27 @@ Notes:
 - Downloads run with the configured `MAX_SIMULTANEOUS_DOWNLOADS` limit, so a long series
   is downloaded gradually and not all at once.
 
+### Finding the right series link
+
+The link must be one `yt-dlp` recognises as a playlist. That is usually the show's
+overview page, not the "all episodes" listing with a season filter, and the difference
+is not always obvious from the browser address bar.
+
+For KiKA the show page works, the episode listing does not:
+
+| Link                                                             | Works |
+|------------------------------------------------------------------|-------|
+| `kika.de/mako-einfach-meerjungfrau/mako-einfach-meerjungfrau-100` | ✅ the show page, all 68 episodes |
+| `kika.de/mako-einfach-meerjungfrau/videos/alle-folgen-302?season=2` | ❌ listing page, `yt-dlp` reads it as a single video id and gets a 404 |
+
+To find the show page, open any episode on kika.de and follow the show title link, or
+take the last path segment ending in a number from the show's own page
+(`<show-name>-100`).
+
+Note that KiKA numbers episodes continuously across seasons (1-68 for the example
+above), so a series download always fetches every available episode; there is no
+per-season selection.
+
 ### Failed episodes
 
 A failed download is re-queued automatically after `RESEND_DELAY_MS` (default 60
