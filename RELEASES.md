@@ -46,6 +46,9 @@ Release date: September 9, 2026
   leave it out to use the default.
 - A new `info.q` queue and `info.dx` exchange are declared automatically on startup, no
   manual RabbitMQ action is needed.
+- New `STALE_TASK_HOURS` variable in `envs/worker.env` (default `6`), after which an
+  unfinished download counts as orphaned and is queued again instead of being skipped
+  forever. Leave it out to use the default.
 - New `CONSUMER_NUMBER_OF_RETRY` and `RESEND_DELAY_MS` variables in `envs/common.env`.
   Both fall back to their previous defaults when absent, so adding them is optional.
   `CONSUMER_NUMBER_OF_RETRY` now accepts `0` to turn retrying off.

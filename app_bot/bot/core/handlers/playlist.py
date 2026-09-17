@@ -46,7 +46,9 @@ class PlaylistInfoHandler(AbstractDownloadHandler):
         lines.append(f'🔢 {bold(found)}')
 
         if skipped_count:
-            lines.append(f'⏭️ {bold(f"{skipped_count} already downloaded")}, skipped')
+            lines.append(
+                f'⏭️ {bold(f"{skipped_count} skipped")}, already downloaded or running'
+            )
 
         lines.append(f'⬇️ {bold(f"{queued_count} queued")}')
         lines.append(

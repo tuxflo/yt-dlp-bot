@@ -180,7 +180,7 @@ missing gets downloaded:
 ```
 📺 Happy Valley
 🔢 18 videos found
-⏭️ 15 already downloaded, skipped
+⏭️ 15 skipped, already downloaded or running
 ⬇️ 3 queued
 ⏳ Each video is downloaded as a separate task.
 ```
@@ -190,9 +190,11 @@ Notes:
 - Skipping is based on the task history in the database, matched on the exact episode
   URL. Users configured with `save_to_database: !!bool False` have their tasks purged,
   so for them nothing is ever skipped and re-sending downloads the whole series again.
-- Only *failed* entries are re-queued. Entries still `PENDING` or `PROCESSING` are
-  skipped too, so re-sending a link while the first run is still going does not queue
-  the same video twice.
+- Failed entries are always re-queued. Entries still `PENDING` or `PROCESSING` are
+  skipped, so re-sending a link while the first run is still going does not queue the
+  same video twice — unless they have been untouched for `STALE_TASK_HOURS` (default
+  `6`, see `envs/worker.env`). An unfinished task that old is treated as orphaned,
+  which is what a worker restart mid-download leaves behind, and is queued again.
 - To deliberately download something again, send the single video URL instead. A plain
   link is always downloaded and never checked against the history.
 

@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import traceback
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from yt_dlp import version as ytdlp_version
 from yt_shared.db.session import get_db
-from yt_shared.enums import TaskStatus
 from yt_shared.models import Task
 from yt_shared.rabbit.publisher import RmqPublisher
 from yt_shared.repositories.task import TaskRepository
@@ -23,14 +23,6 @@ from worker.core.playlist import Playlist, PlaylistEntry, PlaylistExtractor
 from ytdl_opts.per_host._registry import get_host_conf
 
 _MS_IN_SECOND: Final[int] = 1000
-
-# A playlist entry is re-queued only when its previous task failed. Anything else
-# either succeeded or is still on its way through the pipeline.
-_ALREADY_HANDLED_STATUSES: Final[tuple[TaskStatus, ...]] = (
-    TaskStatus.DONE,
-    TaskStatus.PENDING,
-    TaskStatus.PROCESSING,
-)
 
 
 class InboundPayloadHandler:
@@ -203,19 +195,23 @@ class InboundPayloadHandler:
     async def _filter_already_handled(
         self, entries: list[PlaylistEntry]
     ) -> list[PlaylistEntry]:
-        """Drop entries that were downloaded before or are still queued.
+        """Drop entries that were downloaded before or are still being worked on.
 
         Re-sending a series link therefore downloads only what is actually missing.
-        Previously failed entries are kept so that they are retried.
+        Previously failed entries are kept so that they are retried, as are entries
+        left unfinished by a worker restart.
 
         Args:
             entries (list[PlaylistEntry]): All entries found behind the playlist URL.
 
         """
+        # 'Task.updated' is naive UTC, so compare against a naive UTC point in time.
+        stale_before = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            hours=settings.STALE_TASK_HOURS
+        )
         async for session in get_db():
-            handled_urls = await TaskRepository(db=session).get_urls_with_status(
-                urls=[entry.url for entry in entries],
-                statuses=_ALREADY_HANDLED_STATUSES,
+            handled_urls = await TaskRepository(db=session).get_urls_to_skip(
+                urls=[entry.url for entry in entries], stale_before=stale_before
             )
 
         if not handled_urls:

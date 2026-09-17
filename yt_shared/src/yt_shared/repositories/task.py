@@ -1,6 +1,7 @@
 import logging
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -47,18 +48,28 @@ class TaskRepository:
         await self._db.commit()
         return task
 
-    async def get_urls_with_status(
-        self, urls: Sequence[str], statuses: Sequence[TaskStatus]
+    async def get_urls_to_skip(
+        self, urls: Sequence[str], stale_before: datetime
     ) -> set[str]:
-        """Return the subset of URLs that already have a task in one of the statuses.
+        """Return the subset of URLs that does not need to be downloaded again.
 
-        Used to skip playlist entries that were downloaded before or are still queued.
+        A URL is skipped when its task is done, or when it is still on its way through
+        the pipeline. An unfinished task untouched since `stale_before` is considered
+        orphaned, which happens when the worker is restarted mid-download, and is not
+        skipped so that it gets queued again.
+
+        Note that `Task.updated` is naive UTC, so `stale_before` must be as well.
         """
         if not urls:
             return set()
 
+        unfinished = (TaskStatus.PENDING, TaskStatus.PROCESSING)
         stmt = select(distinct(Task.url)).where(
-            Task.url.in_(urls) & Task.status.in_(statuses)
+            Task.url.in_(urls)
+            & (
+                (Task.status == TaskStatus.DONE)
+                | (Task.status.in_(unfinished) & (Task.updated >= stale_before))
+            )
         )
         result = await self._db.execute(stmt)
         return set(result.scalars().all())
