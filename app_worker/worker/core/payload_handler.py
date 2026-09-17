@@ -172,6 +172,8 @@ class InboundPayloadHandler:
                     'url': entry.url,
                     'original_url': entry.url,
                     'playlist': False,
+                    # Groups the episodes into their own storage subdirectory.
+                    'playlist_title': playlist.title,
                     # The acknowledgment message is replaced by the playlist info one.
                     'ack_message_id': None,
                     # A single custom name cannot be applied to many videos.

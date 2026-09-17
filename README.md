@@ -53,6 +53,26 @@ Version: 1.8.0. [Release details](RELEASES.md).
          - "D:/Videos:/filestorage"
    ```
 10. Change application's `LOG_LEVEL` in `envs/common.env` to `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` if needed
+11. Saved media is grouped into `<STORAGE_PATH>/<host>/<series>` subdirectories:
+
+    ```
+    /filestorage
+    ├── Kika
+    │   └── Mako - Einfach Meerjungfrau
+    │       ├── 1. Ausgestoßen.mp4
+    │       └── 2. Gehversuche.mp4
+    ├── ArteTV
+    │   └── Happy Valley
+    │       └── Happy Valley - Staffel 1 (1⧸6).mp4
+    └── Youtube
+        └── some video.mp4
+    ```
+
+    The host directory is the name of the `yt-dlp` extractor that produced the file,
+    and the series directory only exists for episodes downloaded with `/series`;
+    single videos land directly in the host directory. Set
+    `STORAGE_SUBDIRECTORIES=False` in `envs/worker.env` to save everything flat into
+    `STORAGE_PATH` instead. Existing files are never moved.
 
 ## 🏃 Run
 

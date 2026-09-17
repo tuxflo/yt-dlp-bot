@@ -21,6 +21,11 @@ Release date: September 9, 2026
 - Re-sending a series link downloads only what is missing: entries that already have a
   completed task, or one that is still queued, are skipped. Failed entries are
   re-queued, so recovering from a partly failed series is just sending the link again.
+- Saved media is grouped into `<STORAGE_PATH>/<host>/<series>` subdirectories, e.g.
+  `Kika/Mako - Einfach Meerjungfrau/1. Ausgestoßen.mp4`, instead of landing flat in
+  `STORAGE_PATH`. The host name comes from the `yt-dlp` extractor; the series part only
+  applies to `/series` downloads. Set `STORAGE_SUBDIRECTORIES=False` in
+  `envs/worker.env` for the previous flat layout.
 - Host configuration for the German KiKA (`kika.de`). KiKA offers every resolution both
   as HLS and as a plain MP4, and now the plain file is preferred: one request instead of
   several hundred fragments at the same resolution, which makes downloading a whole

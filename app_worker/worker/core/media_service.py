@@ -4,8 +4,9 @@ import shutil
 import time
 from collections.abc import Coroutine
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
+from yt_dlp.utils import sanitize_filename
 from yt_shared.enums import DownMediaType, TaskStatus
 from yt_shared.models import Task
 from yt_shared.repositories.task import TaskRepository
@@ -22,6 +23,10 @@ from worker.core.tasks.ffprobe_context import GetFfprobeContextTask
 from worker.core.tasks.thumbnail import MakeThumbnailTask
 from ytdl_opts.per_host._base import AbstractHostConfig
 from ytdl_opts.per_host._registry import get_host_conf
+
+# Most filesystems cap a path component at 255 bytes; stay well below that since a
+# sanitized title may contain multi-byte replacement characters.
+_MAX_DIR_NAME_LEN: Final[int] = 100
 
 
 class MediaService:
@@ -125,7 +130,7 @@ class MediaService:
             )
 
         if self._media_payload.save_to_storage:
-            coro_tasks.append(self._create_copy_file_task(video))
+            coro_tasks.append(self._create_copy_file_task(video, media))
 
         if host_conf.ENCODE_VIDEO:
             coro_tasks.append(
@@ -152,7 +157,7 @@ class MediaService:
     ) -> None:
         coro_tasks = [self._repository.save_file(self._task, media.audio, media.meta)]
         if self._media_payload.save_to_storage:
-            coro_tasks.append(self._create_copy_file_task(media.audio))
+            coro_tasks.append(self._create_copy_file_task(media.audio, media))
         results = await asyncio.gather(*coro_tasks)
         file = results[0]
         media.audio.orm_file_id = file.id
@@ -175,10 +180,10 @@ class MediaService:
         video.width = video_streams[0]['width']
         video.height = video_streams[0]['height']
 
-    def _create_copy_file_task(self, file: BaseMedia) -> asyncio.Task:
+    def _create_copy_file_task(self, file: BaseMedia, media: DownMedia) -> asyncio.Task:
         task_name = f'Copy {file.file_type} file to storage task'
         return create_task(
-            self._copy_file_to_storage(file),
+            self._copy_file_to_storage(file, media),
             task_name=task_name,
             logger=self._log,
             exception_message='Task "%s" raised an exception',
@@ -198,8 +203,44 @@ class MediaService:
             exception_message_args=(MakeThumbnailTask.__class__.__name__,),
         )
 
-    async def _copy_file_to_storage(self, file: BaseMedia) -> None:
-        dst = settings.STORAGE_PATH / file.current_filename
+    def _build_storage_dir(self, media: DownMedia) -> Path:
+        """Build "<STORAGE_PATH>/<host>/<series>", where both parts are optional.
+
+        The host comes from the yt-dlp extractor that produced the media, e.g. "Kika"
+        or "ArteTV"; the series part only exists for episodes of a '/series' download.
+        """
+        if not settings.STORAGE_SUBDIRECTORIES:
+            return settings.STORAGE_PATH
+
+        parts = [
+            part
+            for part in (
+                self._sanitize_dir_name(media.meta.get('extractor_key')),
+                self._sanitize_dir_name(self._media_payload.playlist_title),
+            )
+            if part
+        ]
+        return settings.STORAGE_PATH.joinpath(*parts)
+
+    @staticmethod
+    def _sanitize_dir_name(name: str | None) -> str | None:
+        """Turn a title into a single safe directory name, or None if unusable."""
+        if not name:
+            return None
+        # Replaces path separators, but leaves '..' alone, which would escape the
+        # storage directory, so those are rejected below.
+        sanitized = sanitize_filename(str(name), restricted=False).strip()
+        if sanitized in {'', '.', '..'}:
+            return None
+        return sanitized[:_MAX_DIR_NAME_LEN].strip() or None
+
+    async def _copy_file_to_storage(self, file: BaseMedia, media: DownMedia) -> None:
+        storage_dir = self._build_storage_dir(media)
+        if storage_dir != settings.STORAGE_PATH:
+            self._log.info('Creating storage directory "%s"', storage_dir)
+            await asyncio.to_thread(storage_dir.mkdir, parents=True, exist_ok=True)
+
+        dst = storage_dir / file.current_filename
         if dst.is_file():
             self._log.warning('Destination file in storage already exists: %s', dst)
             dst = (

@@ -34,6 +34,8 @@ class InbMediaPayload(StrictRealBaseModel):
     added_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     retry_count: int = 0
     """How many times this download was already re-queued after a failure."""
+    playlist_title: str | None = None
+    """Title of the series/playlist this entry came from, used as storage subdirectory."""
     playlist: bool = False
     """Download the whole playlist/series/season behind the URL.
 

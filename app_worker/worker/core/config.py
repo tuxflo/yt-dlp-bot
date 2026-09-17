@@ -11,6 +11,8 @@ class WorkerSettings(CommonSettings):
     # your slowest download takes.
     STALE_TASK_HOURS: PositiveInt = 6
     STORAGE_PATH: DirectoryPath
+    # Save into "<STORAGE_PATH>/<host>/<series>" instead of flat into STORAGE_PATH.
+    STORAGE_SUBDIRECTORIES: bool = True
     THUMBNAIL_FRAME_SECOND: float
     INSTAGRAM_ENCODE_TO_H264: bool
     FACEBOOK_ENCODE_TO_H264: bool
