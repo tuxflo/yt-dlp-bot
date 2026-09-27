@@ -76,7 +76,12 @@ AUDIO_FORMAT_YTDL_OPTS: Final[_OptsType] = ('--format', 'bestaudio/best')
 
 VIDEO_YTDL_OPTS: Final[_OptsType] = (
     '--format',
-    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+    # Sites that split video and audio do not all offer the audio as 'm4a': arte.tv
+    # serves its audio tracks as 'mp4', so requiring 'm4a' made the whole merge fail
+    # and the download fell back to a video-only stream, giving a silent file. Fall
+    # back to any audio before falling back to a single file.
+    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio/'
+    'bestvideo+bestaudio/best/mp4',
     '--write-thumbnail',
     '--convert-thumbnails',
     FINAL_THUMBNAIL_FORMAT,

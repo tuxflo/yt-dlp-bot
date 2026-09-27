@@ -37,6 +37,12 @@ Release date: September 9, 2026
 
 ## Fixes
 
+- Videos from sites that serve their audio as `mp4` rather than `m4a`, such as arte.tv,
+  were downloaded without sound. The format selection asked for
+  `bestvideo[ext=mp4]+bestaudio[ext=m4a]`, which matched no audio at all on those sites,
+  so it fell back to `mp4` and that happily picked a video-only stream. Any audio is now
+  accepted before falling back to a single file. Unrelated to the series feature: single
+  videos from those sites were silent too.
 - `MAX_SIMULTANEOUS_DOWNLOADS` is now actually enforced. It was applied as the RabbitMQ
   prefetch count, but the worker acknowledges a message before starting its download, so
   the broker kept delivering and every delivery is handled in its own task. The real
