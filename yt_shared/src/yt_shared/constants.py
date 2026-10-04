@@ -20,6 +20,14 @@ TWITTER_HOSTS: Final[tuple[str, ...]] = (
 )
 FACEBOOK_HOSTS: Final[tuple[str, ...]] = ('facebook.com', 'www.facebook.com')
 KIKA_HOSTS: Final[tuple[str, ...]] = ('kika.de', 'www.kika.de')
+YOUTUBE_HOSTS: Final[tuple[str, ...]] = (
+    'youtube.com',
+    'www.youtube.com',
+    'm.youtube.com',
+    'music.youtube.com',
+    'youtu.be',
+    'www.youtu.be',
+)
 
 REMOVE_QUERY_PARAMS_HOSTS: Final[set[str]] = {
     *TWITTER_HOSTS,

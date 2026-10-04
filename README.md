@@ -181,6 +181,11 @@ To find the show page, open any episode on kika.de and follow the show title lin
 take the last path segment ending in a number from the show's own page
 (`<show-name>-100`).
 
+For YouTube, a legacy `youtube.com/show/VL<playlist_id>` link is rewritten to
+`youtube.com/playlist?list=<playlist_id>` automatically, since the `/show/` form lists
+its videos only when YouTube's own tracking parameters happen to be in the URL and
+reports the playlist title as literally "show".
+
 Note that KiKA numbers episodes continuously across seasons (1-68 for the example
 above), so a series download always fetches every available episode; there is no
 per-season selection.

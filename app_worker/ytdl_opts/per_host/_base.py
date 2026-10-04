@@ -131,6 +131,14 @@ class AbstractHostConfig:
         """Build options used to list playlist/series entries without downloading."""
         return cli_to_api(list(deepcopy(self.PLAYLIST_YTDL_OPTS)))
 
+    def normalize_playlist_url(self) -> str:
+        """Rewrite the URL into the form that lists a playlist most reliably.
+
+        Hosts that expose the same playlist under several URL shapes should override
+        this to return the one 'yt-dlp' handles best.
+        """
+        return self.url
+
     @abstractmethod
     def _build_custom_ytdl_video_opts(self) -> tuple[str, ...]:
         pass

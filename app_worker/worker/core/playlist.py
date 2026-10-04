@@ -47,7 +47,7 @@ class PlaylistExtractor:
         self._log = logging.getLogger(self.__class__.__name__)
 
     def extract(self, host_conf: AbstractHostConfig, max_items: int) -> Playlist:
-        url = host_conf.url
+        url = host_conf.normalize_playlist_url()
         ytdl_opts = host_conf.build_playlist_ytdl_opts()
         self._log.info('Listing playlist "%s" with options: %s', url, ytdl_opts)
 

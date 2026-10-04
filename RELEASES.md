@@ -26,6 +26,11 @@ Release date: September 9, 2026
   `STORAGE_PATH`. The host name comes from the `yt-dlp` extractor; the series part only
   applies to `/series` downloads. Set `STORAGE_SUBDIRECTORIES=False` in
   `envs/worker.env` for the previous flat layout.
+- Legacy YouTube `/show/VL<playlist_id>` links are rewritten to
+  `/playlist?list=<playlist_id>` before a series is expanded. The `/show/` form only
+  lists its videos while YouTube's own tracking query parameters are present, makes
+  `yt-dlp` retry on incomplete responses, and reports the playlist title as literally
+  "show", which then became the storage subdirectory name.
 - Host configuration for the German KiKA (`kika.de`). KiKA offers every resolution both
   as HLS and as a plain MP4, and now the plain file is preferred: one request instead of
   several hundred fragments at the same resolution, which makes downloading a whole

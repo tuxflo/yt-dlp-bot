@@ -4,6 +4,7 @@ from ytdl_opts.per_host.instagram import InstagramHost
 from ytdl_opts.per_host.kika import KikaHost
 from ytdl_opts.per_host.tiktok import TikTokHost
 from ytdl_opts.per_host.twitter import TwitterHost
+from ytdl_opts.per_host.youtube import YouTubeHost
 
 __all__ = [
     'DefaultHost',
@@ -12,4 +13,5 @@ __all__ = [
     'KikaHost',
     'TikTokHost',
     'TwitterHost',
+    'YouTubeHost',
 ]
