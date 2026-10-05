@@ -11,6 +11,7 @@ from yt_shared.utils.tasks.abstract import AbstractTask
 from bot.core.config.config import get_main_config
 from bot.core.exceptions import InvalidBodyError
 from bot.core.workers.enums import RabbitWorkerType
+from bot.version import __version__
 
 if TYPE_CHECKING:
     from bot.bot.client import VideoBotClient
@@ -67,5 +68,12 @@ class AbstractDownloadResultWorker(AbstractTask):
 
     async def _reject_invalid_body(self, message: IncomingMessage) -> None:
         body = message.body
-        self._log.critical('Invalid message body: %s, type: %s', body, type(body))
+        self._log.critical(
+            'Invalid message body: %s, type: %s. This bot runs yt-dlp-bot version %s; '
+            'if the worker runs a newer one, rebuild the bot image too, since a '
+            'payload field this version does not know makes every message undecodable',
+            body,
+            type(body),
+            __version__,
+        )
         await message.reject(requeue=False)

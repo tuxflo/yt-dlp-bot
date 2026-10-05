@@ -12,6 +12,7 @@ from bot.core.config.config import get_main_config
 from bot.core.tasks.db_cleanup import DbCleanupTask
 from bot.core.tasks.ytdlp import YtdlpNewVersionNotifyTask
 from bot.core.workers.manager import RabbitWorkerManager
+from bot.version import __version__
 
 
 class BotLauncher:
@@ -105,7 +106,11 @@ class BotLauncher:
         """Start telegram bot and related processes."""
         await self._bot.start()
 
-        self._log.info('Starting "%s"', (await self._bot.get_me()).first_name)
+        self._log.info(
+            'Starting "%s", yt-dlp-bot version %s',
+            (await self._bot.get_me()).first_name,
+            __version__,
+        )
         await self._bot.send_startup_message()
         await self._start_tasks()
         await self._bot.run_forever()

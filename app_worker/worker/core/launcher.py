@@ -7,6 +7,7 @@ from yt_shared.rabbit import get_rabbitmq
 from yt_shared.rabbit.rabbit_config import INPUT_QUEUE
 from yt_shared.repositories.ytdlp import YtdlpRepository
 from yt_shared.utils.common import register_shutdown
+from yt_shared.version import __version__
 
 from worker.core.callbacks import rmq_callbacks as cb
 from worker.core.config import settings
@@ -20,7 +21,9 @@ class WorkerLauncher:
         self._rabbit_mq = get_rabbitmq()
 
     async def start(self) -> None:
-        self._log.info('Starting download worker instance')
+        self._log.info(
+            'Starting download worker instance, yt-dlp-bot version %s', __version__
+        )
         await self._start()
 
     async def _start(self) -> None:
