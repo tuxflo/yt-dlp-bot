@@ -168,10 +168,20 @@ Notes:
 
 Sites serve 4K when nothing stops them, which is slow to download, hard on a weak CPU
 and unplayable on older streaming hardware. Put a quality keyword before the URL to cap
-it:
+it. This works for a single pasted video and for a series alike:
 
 ```
+MEDIUM https://www.youtube.com/watch?v=e_eumrJ9c5U
 /series MEDIUM https://www.youtube.com/playlist?list=PLQqKYnmonjdE9lGQ845aO34qgWbBffTf6
+```
+
+With several URLs, the keyword may also sit on its own first line and then applies to
+all of them:
+
+```
+MEDIUM
+https://www.youtube.com/watch?v=e_eumrJ9c5U
+https://www.youtube.com/watch?v=3FUaAG0ghmA
 ```
 
 | Keyword  | Max resolution     |
@@ -182,7 +192,8 @@ it:
 | `BEST`   | unlimited, default |
 
 The keyword is case-insensitive and optional; without it nothing is capped, which is the
-previous behaviour. Capping also picks H.264 over VP9 or H.265 in practice, since the
+previous behaviour. Only the first word of the message is ever treated as a keyword, so
+a message that merely mentions a URL is handled exactly as before. Capping also picks H.264 over VP9 or H.265 in practice, since the
 high-efficiency codecs are mostly offered at the large resolutions — useful for devices
 that cannot decode them smoothly. For the YouTube episode used above, `BEST` gives VP9
 at 3840x2160 while `MEDIUM` gives H.264 at 1280x720 and roughly a tenth of the bytes.

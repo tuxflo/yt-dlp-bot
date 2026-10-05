@@ -101,6 +101,31 @@ class UrlParser:
             return VideoQuality(words[0].upper()), words[1:]
         return VideoQuality.BEST, words
 
+    @classmethod
+    def pop_video_quality_from_text(cls, text: str) -> tuple[VideoQuality, list[str]]:
+        """Split a leading quality keyword off a pasted message, return it and the URLs.
+
+        One URL per line as before, but the very first word of the message may be a
+        quality keyword, which then applies to every URL in that message. Both
+        'MEDIUM <url>' and 'MEDIUM' on its own first line work. Only that first word is
+        considered, so a line is never otherwise split and a message that merely
+        mentions a URL behaves exactly as it did before.
+        """
+        lines = text.splitlines()
+        if not lines:
+            return VideoQuality.BEST, lines
+
+        head = lines[0].split(maxsplit=1)
+        # Explicitly check for the keyword rather than comparing the returned quality:
+        # a spelled-out 'BEST <url>' must still have its keyword stripped.
+        if not head or head[0].upper() not in VideoQuality.choices():
+            return VideoQuality.BEST, lines
+
+        quality, remaining = cls.pop_video_quality(head)
+        first_line = remaining[0].strip() if remaining else ''
+        rest = ([first_line] if first_line else []) + lines[1:]
+        return quality, rest
+
     def parse_urls(
         self,
         urls: list[str],

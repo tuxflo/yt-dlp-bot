@@ -45,7 +45,9 @@ class TelegramCallback:
         await message.reply(
             f'{bold("Send video URL to start processing")}\n'
             f'{bold("Send /series URL to download a whole series, season or playlist")}\n'
-            f'{bold("Add a quality to cap the resolution:")} /series MEDIUM URL\n'
+            f'{bold("Cap the resolution with a leading quality:")} MEDIUM URL\n'
+            f'{bold("Works for a series too:")} /series MEDIUM URL\n'
+            f'LOW 480p · MEDIUM 720p · HIGH 1080p · BEST unlimited (default)\n'
             f'{bold("Forget a host, to download it again:")} /clear youtube',
             parse_mode=ParseMode.HTML,
             reply_to_message_id=message.id,
@@ -59,8 +61,13 @@ class TelegramCallback:
             self._log.debug('Forwarded message, skipping')
             return
 
+        video_quality, urls = self._url_parser.pop_video_quality_from_text(text)
         await self._process_urls(
-            client=client, message=message, urls=text.splitlines(), playlist=False
+            client=client,
+            message=message,
+            urls=urls,
+            playlist=False,
+            video_quality=video_quality,
         )
 
     async def on_series(self, client: VideoBotClient, message: Message) -> None:
@@ -137,6 +144,10 @@ class TelegramCallback:
         playlist: bool,
         video_quality: VideoQuality = VideoQuality.BEST,
     ) -> None:
+        if not urls:
+            self._log.debug('No urls to download, skipping message')
+            return
+
         user = client.allowed_users[get_user_id(message)]
         if user.use_url_regex_match:
             urls = self._url_parser.filter_urls(

@@ -26,8 +26,9 @@ Release date: September 9, 2026
   `/clear arte.tv`. Needed because a re-sent series link skips what was already
   downloaded, and until now undoing that meant a manual `DELETE` against PostgreSQL.
   Downloaded files are never touched, and downloads that are still running are kept.
-- Cap the downloaded resolution with a quality keyword before the URL, e.g.
-  `/series MEDIUM <url>`: `LOW` 480p, `MEDIUM` 720p, `HIGH` 1080p, `BEST` unlimited
+- Cap the downloaded resolution with a quality keyword before the URL, both for a
+  single pasted video (`MEDIUM <url>`) and for a series (`/series MEDIUM <url>`):
+  `LOW` 480p, `MEDIUM` 720p, `HIGH` 1080p, `BEST` unlimited
   (the default, unchanged). Without a cap, sites happily serve 4K — a YouTube episode
   that `BEST` fetches as VP9 3840x2160 comes down as H.264 1280x720 under `MEDIUM`, at
   roughly a tenth of the size. Useful both for weak CPUs and for playback devices that
