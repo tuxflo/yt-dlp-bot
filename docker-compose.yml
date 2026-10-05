@@ -56,7 +56,7 @@ services:
       - yt_postgres
       - yt_rabbitmq
     volumes:
-      - "/data/downloads:/filestorage"
+      - "/mnt/zpool/media/Jellyfin/Youtube/:/filestorage"
       - "shared-tmpfs:/tmp/download_tmpfs"
   yt_postgres:
     container_name: yt_postgres
