@@ -164,6 +164,32 @@ Notes:
   rather than all at once. Queueing 68 episodes does not start 68 downloads; the rest
   wait their turn. Raise the value if your machine has headroom.
 
+### Limiting the resolution
+
+Sites serve 4K when nothing stops them, which is slow to download, hard on a weak CPU
+and unplayable on older streaming hardware. Put a quality keyword before the URL to cap
+it:
+
+```
+/series MEDIUM https://www.youtube.com/playlist?list=PLQqKYnmonjdE9lGQ845aO34qgWbBffTf6
+```
+
+| Keyword  | Max resolution     |
+|----------|--------------------|
+| `LOW`    | 480p               |
+| `MEDIUM` | 720p               |
+| `HIGH`   | 1080p              |
+| `BEST`   | unlimited, default |
+
+The keyword is case-insensitive and optional; without it nothing is capped, which is the
+previous behaviour. Capping also picks H.264 over VP9 or H.265 in practice, since the
+high-efficiency codecs are mostly offered at the large resolutions — useful for devices
+that cannot decode them smoothly. For the YouTube episode used above, `BEST` gives VP9
+at 3840x2160 while `MEDIUM` gives H.264 at 1280x720 and roughly a tenth of the bytes.
+
+Also available through the API as `"video_quality": "MEDIUM"` in the `POST /v1/tasks`
+payload.
+
 ### Finding the right series link
 
 The link must be one `yt-dlp` recognises as a playlist. That is usually the show's
@@ -228,27 +254,33 @@ Notes:
 1. If you want to change `yt-dlp` download options, go to the `app_worker/ytdl_opts`
    directory, copy content from `default.py` to `user.py` and modify as you wish by
    checking [available options](https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L180).
-2. Default max simultaneous video downloads by worker service is 2. Change
+2. `MAX_DOWNLOAD_THREADS` in `envs/worker.env` is the number of stream fragments fetched
+   in parallel *per download*, so the real parallelism is that times
+   `MAX_SIMULTANEOUS_DOWNLOADS` — 20 connections with the defaults. On a low-power CPU
+   (a NAS, a mini PC) lower it to about `4`, and cap the resolution of what you download
+   (see [Limiting the resolution](#limiting-the-resolution)); pulling 4K is what drives
+   the load up most.
+3. Default max simultaneous video downloads by worker service is 2. Change
    the `MAX_SIMULTANEOUS_DOWNLOADS` variable in `envs/worker.env` to desired value but
    keep in mind that default mounted volume size is 7168m (7GB) in `docker-compose.yml`
    so it may be not enough if you download a lot of large videos at once.
-3. `yt-dlp` will try to download video thumbnail if it exists. In other case Worker
+4. `yt-dlp` will try to download video thumbnail if it exists. In other case Worker
    service (particularly the FFmpeg process) will make a JPEG thumbnail from the
    video. It's needed when you choose to upload the video to the Telegram chat. By
    default, it will try to make it on the 10th second of the video, but if the video is
    shorter, it will make it on `video length / 2` time point because the FFmpeg process
    will error out. Change the `THUMBNAIL_FRAME_SECOND` variable if needed in
    the `envs/worker.env` file.
-4. Max upload file size for non-premium Telegram user is 2GB (2147483648 bytes) which is
+5. Max upload file size for non-premium Telegram user is 2GB (2147483648 bytes) which is
    reflected in the example config `app_bot/config-example.yml`. If the configured user
    is the premium user, you're allowed to upload files up to 4GB (4294967296 bytes) and
    can change the default value stored in the `upload_video_max_file_size` config
    variable.
-5. If the website you want to download from requires authentication you can use your cookies by putting them into
+6. If the website you want to download from requires authentication you can use your cookies by putting them into
    the `app_worker/cookies/cookies.txt` file in the Netscape format.
-6. Maximum number of videos queued from a single `/series` link is 100. Change
+7. Maximum number of videos queued from a single `/series` link is 100. Change
    the `MAX_PLAYLIST_ITEMS` variable in `envs/worker.env` to desired value.
-7. On NixOS run `nix-shell` in the repository root to get `ruff`, `uv`, `yt-dlp` and
+8. On NixOS run `nix-shell` in the repository root to get `ruff`, `uv`, `yt-dlp` and
    `ffmpeg` for linting (`ruff check .`, `ruff format --diff .`) and local debugging.
 
 ## 🛑 Failed download

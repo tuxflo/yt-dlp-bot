@@ -62,7 +62,10 @@ class MediaService:
         return media
 
     def _get_host_conf(self) -> AbstractHostConfig:
-        return get_host_conf(self._task.url)
+        return get_host_conf(
+            self._task.url,
+            max_height=self._media_payload.video_quality.max_height,
+        )
 
     async def _start_download(self, host_conf: AbstractHostConfig) -> DownMedia:
         try:

@@ -21,6 +21,12 @@ Release date: September 9, 2026
 - Re-sending a series link downloads only what is missing: entries that already have a
   completed task, or one that is still queued, are skipped. Failed entries are
   re-queued, so recovering from a partly failed series is just sending the link again.
+- Cap the downloaded resolution with a quality keyword before the URL, e.g.
+  `/series MEDIUM <url>`: `LOW` 480p, `MEDIUM` 720p, `HIGH` 1080p, `BEST` unlimited
+  (the default, unchanged). Without a cap, sites happily serve 4K — a YouTube episode
+  that `BEST` fetches as VP9 3840x2160 comes down as H.264 1280x720 under `MEDIUM`, at
+  roughly a tenth of the size. Useful both for weak CPUs and for playback devices that
+  struggle with 4K or VP9. Also available as `"video_quality"` in `POST /v1/tasks`.
 - Saved media is grouped into `<STORAGE_PATH>/<host>/<series>` subdirectories, e.g.
   `Kika/Mako - Einfach Meerjungfrau/1. Ausgestoßen.mp4`, instead of landing flat in
   `STORAGE_PATH`. The host name comes from the `yt-dlp` extractor; the series part only
@@ -42,6 +48,12 @@ Release date: September 9, 2026
 
 ## Fixes
 
+- Payloads decoded from RabbitMQ now ignore unknown fields instead of rejecting them.
+  The two services share these schemas but ship as separate images: with
+  `extra='forbid'`, rebuilding only the worker made the older bot reject *every*
+  message, so downloads ran but no acknowledgment, success or error message ever
+  appeared in Telegram. Both services should still be updated together, but a skew no
+  longer silences the bot.
 - Videos from sites that serve their audio as `mp4` rather than `m4a`, such as arte.tv,
   were downloaded without sound. The format selection asked for
   `bestvideo[ext=mp4]+bestaudio[ext=m4a]`, which matched no audio at all on those sites,

@@ -71,6 +71,7 @@ class AbstractHostConfig:
     ENCODE_VIDEO: bool | None = None
 
     KEEP_VIDEO_OPTION: str = '--keep-video'
+    FORMAT_SORT_OPTION_NAME: str = '--format-sort'
 
     DEFAULT_YTDL_OPTS: tuple[str, ...] = DEFAULT_YTDL_OPTS
     PLAYLIST_YTDL_OPTS: tuple[str, ...] = PLAYLIST_YTDL_OPTS
@@ -87,11 +88,17 @@ class AbstractHostConfig:
     FFMPEG_AUDIO_OPTS: str | None = None
     FFMPEG_VIDEO_OPTS: str | None = None
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, max_height: int | None = None) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
         self._validate_hostname()
         self.url = url
-        self._log.info('Instantiating "%s" for url "%s"', self.__class__.__name__, url)
+        self._max_height = max_height
+        self._log.info(
+            'Instantiating "%s" for url "%s", max height %s',
+            self.__class__.__name__,
+            url,
+            max_height or 'unlimited',
+        )
 
     def _validate_hostname(self) -> None:
         if not self.ALLOW_NULL_HOSTNAMES and not self.HOSTNAMES:
@@ -106,7 +113,9 @@ class AbstractHostConfig:
     def _build_ytdl_opts(self, media_type: DownMediaType, curr_tmp_dir: Path) -> dict:
         def _add_video_opts(ytdl_opts_: list[str]) -> None:
             ytdl_opts_.extend(self.DEFAULT_VIDEO_YTDL_OPTS)
-            ytdl_opts_.extend(self._build_custom_ytdl_video_opts())
+            ytdl_opts_.extend(
+                self._apply_max_height(self._build_custom_ytdl_video_opts())
+            )
 
         ytdl_opts = list(deepcopy(self.DEFAULT_YTDL_OPTS))
 
@@ -130,6 +139,27 @@ class AbstractHostConfig:
     def build_playlist_ytdl_opts(self) -> dict:
         """Build options used to list playlist/series entries without downloading."""
         return cli_to_api(list(deepcopy(self.PLAYLIST_YTDL_OPTS)))
+
+    def _apply_max_height(self, sort_opts: tuple[str, ...]) -> tuple[str, ...]:
+        """Pin the resolution preference of a '--format-sort' option to a maximum.
+
+        'res' alone means "prefer the highest resolution", which is how a 4K stream
+        gets picked. Giving it a value makes 'yt-dlp' prefer that resolution instead.
+        """
+        if not self._max_height:
+            return sort_opts
+
+        opts = list(sort_opts)
+        for idx, opt in enumerate(opts):
+            if opt != self.FORMAT_SORT_OPTION_NAME or idx + 1 >= len(opts):
+                continue
+            fields = [field.strip() for field in opts[idx + 1].split(',')]
+            capped = f'res:{self._max_height}'
+            fields = [capped if field == 'res' else field for field in fields]
+            if capped not in fields:
+                fields.insert(0, capped)
+            opts[idx + 1] = ','.join(fields)
+        return tuple(opts)
 
     def normalize_playlist_url(self) -> str:
         """Rewrite the URL into the form that lists a playlist most reliably.

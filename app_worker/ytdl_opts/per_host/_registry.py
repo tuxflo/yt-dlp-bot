@@ -40,8 +40,8 @@ class HostConfRegistry(type):
             cls.HOST_TO_CLS_MAP[host] = host_cls
 
 
-def get_host_conf(url: str) -> AbstractHostConfig:
+def get_host_conf(url: str, max_height: int | None = None) -> AbstractHostConfig:
     """Return host config instance matching the URL's hostname."""
     host_to_cls_map = HostConfRegistry.get_host_to_cls_map()
     host_cls = host_to_cls_map.get(urlsplit(url).netloc, host_to_cls_map[None])
-    return host_cls(url=url)
+    return host_cls(url=url, max_height=max_height)

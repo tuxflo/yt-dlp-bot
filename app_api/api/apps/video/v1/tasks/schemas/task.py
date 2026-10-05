@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field, StrictFloat, StrictInt, StrictStr
-from yt_shared.enums import DownMediaType, TaskSource, TaskStatus
+from yt_shared.enums import DownMediaType, TaskSource, TaskStatus, VideoQuality
 from yt_shared.schemas.base import BaseOrmModel, StrictRealBaseModel
 
 
@@ -59,6 +59,7 @@ class CreateTaskIn(StrictRealBaseModel):
     save_to_storage: bool = ...
     custom_filename: str = ...
     automatic_extension: bool = ...
+    video_quality: Annotated[VideoQuality, Field(strict=False)] = VideoQuality.BEST
     playlist: bool = False
 
 

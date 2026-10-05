@@ -19,6 +19,20 @@ class StrictRealBaseModel(RealBaseModel, ABC):
     model_config = ConfigDict(**RealBaseModel.model_config, strict=True)
 
 
+# Models decoded from the message broker must tolerate unknown fields. Both services
+# share these schemas, but they are deployed as separate images and can be rebuilt
+# independently: with 'extra="forbid"' a newer publisher adding one field makes the
+# older consumer reject every single message, which silently kills all Telegram
+# feedback while downloads keep working.
+_WIRE_MODEL_CONFIG = {**RealBaseModel.model_config, 'extra': 'ignore'}
+
+
+class StrictWireBaseModel(RealBaseModel, ABC):
+    """Base model for payloads decoded from the message broker."""
+
+    model_config = ConfigDict(**_WIRE_MODEL_CONFIG, strict=True)
+
+
 class BaseOrmModel(RealBaseModel, ABC):
     model_config = ConfigDict(**RealBaseModel.model_config, from_attributes=True)
 
@@ -33,6 +47,8 @@ class StrictBaseConfigModel(StrictRealBaseModel, ABC):
 
 class BaseRabbitPayloadModel(RealBaseModel, ABC):
     """Base RabbitMQ payload model. All RabbitMQ models should inherit from this."""
+
+    model_config = ConfigDict(**_WIRE_MODEL_CONFIG)
 
     type: RabbitPayloadType
 

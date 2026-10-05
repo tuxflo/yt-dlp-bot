@@ -5,7 +5,7 @@ from urllib.parse import urljoin, urlparse
 
 from pyrogram.types import Message
 from yt_shared.constants import REMOVE_QUERY_PARAMS_HOSTS
-from yt_shared.enums import TaskSource, TelegramChatType
+from yt_shared.enums import TaskSource, TelegramChatType, VideoQuality
 from yt_shared.rabbit.publisher import RmqPublisher
 from yt_shared.schemas.media import InbMediaPayload
 from yt_shared.schemas.url import URL
@@ -37,6 +37,7 @@ class UrlService:
             download_media_type=url.download_media_type,
             custom_filename=None,
             automatic_extension=False,
+            video_quality=url.video_quality,
             playlist=url.playlist,
         )
         is_sent = await self._rmq_publisher.send_for_download(payload)
@@ -59,11 +60,23 @@ class UrlParser:
                 preprocessed_urls[url] = url
         return preprocessed_urls
 
+    @staticmethod
+    def pop_video_quality(words: list[str]) -> tuple[VideoQuality, list[str]]:
+        """Split a leading quality keyword off the command arguments.
+
+        Returns the requested quality and the remaining words, so
+        '/series MEDIUM <url>' caps the resolution while '/series <url>' does not.
+        """
+        if words and words[0].upper() in VideoQuality.choices():
+            return VideoQuality(words[0].upper()), words[1:]
+        return VideoQuality.BEST, words
+
     def parse_urls(
         self,
         urls: list[str],
         context: dict[str, Message | UserSchema],
         playlist: bool = False,
+        video_quality: VideoQuality = VideoQuality.BEST,
     ) -> list[URL]:
         message: Message = context['message']
         user: UserSchema = context['user']
@@ -80,6 +93,7 @@ class UrlParser:
                 ack_message_id=ack_message.id,
                 save_to_storage=user.save_to_storage,
                 download_media_type=user.download_media_type,
+                video_quality=video_quality,
                 playlist=playlist,
             )
             for orig_url, url in self._preprocess_urls(urls).items()

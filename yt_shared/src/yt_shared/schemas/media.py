@@ -7,16 +7,22 @@ from typing import Annotated, Literal, Self
 from PIL import Image
 from pydantic import ConfigDict, DirectoryPath, Field, FilePath, model_validator
 
-from yt_shared.enums import DownMediaType, MediaFileType, TaskSource, TelegramChatType
-from yt_shared.schemas.base import StrictRealBaseModel
+from yt_shared.enums import (
+    DownMediaType,
+    MediaFileType,
+    TaskSource,
+    TelegramChatType,
+    VideoQuality,
+)
+from yt_shared.schemas.base import StrictRealBaseModel, StrictWireBaseModel
 from yt_shared.utils.common import calculate_aspect_ratio, format_bytes
 from yt_shared.utils.file import file_size
 
 
-class InbMediaPayload(StrictRealBaseModel):
+class InbMediaPayload(StrictWireBaseModel):
     """RabbitMQ inbound media payload from Telegram Bot or API service."""
 
-    model_config = ConfigDict(**StrictRealBaseModel.model_config, frozen=True)
+    model_config = ConfigDict(**StrictWireBaseModel.model_config, frozen=True)
 
     id: uuid.UUID | None = None
     from_chat_id: int | None
@@ -32,6 +38,8 @@ class InbMediaPayload(StrictRealBaseModel):
     custom_filename: str | None
     automatic_extension: bool
     added_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    video_quality: Annotated[VideoQuality, Field(strict=False)] = VideoQuality.BEST
+    """Upper bound on the downloaded resolution."""
     retry_count: int = 0
     """How many times this download was already re-queued after a failure."""
     playlist_title: str | None = None

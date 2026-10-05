@@ -1,4 +1,5 @@
 from enum import StrEnum, unique
+from typing import Final
 
 
 @unique
@@ -46,6 +47,32 @@ class DownMediaType(StrChoiceEnum):
     AUDIO = 'AUDIO'
     VIDEO = 'VIDEO'
     AUDIO_VIDEO = 'AUDIO_VIDEO'
+
+
+class VideoQuality(StrChoiceEnum):
+    """Upper bound on the downloaded video resolution.
+
+    Capping the resolution keeps files playable on weaker hardware and cuts the CPU
+    cost of downloading, since sites happily serve 4K when nothing limits them.
+    """
+
+    LOW = 'LOW'
+    MEDIUM = 'MEDIUM'
+    HIGH = 'HIGH'
+    BEST = 'BEST'
+
+    @property
+    def max_height(self) -> int | None:
+        """Maximum video height in pixels, or None for no limit."""
+        return _QUALITY_TO_MAX_HEIGHT[self]
+
+
+_QUALITY_TO_MAX_HEIGHT: Final[dict[VideoQuality, int | None]] = {
+    VideoQuality.LOW: 480,
+    VideoQuality.MEDIUM: 720,
+    VideoQuality.HIGH: 1080,
+    VideoQuality.BEST: None,
+}
 
 
 class MediaFileType(StrChoiceEnum):
