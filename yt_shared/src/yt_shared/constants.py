@@ -3,6 +3,10 @@ from typing import Final
 
 SHARED_ASYNC_LOCK: Final[Lock] = Lock()
 
+# An unfinished task untouched for this long is treated as orphaned rather than as
+# still being worked on, which is what a worker restarted mid-download leaves behind.
+DEFAULT_STALE_TASK_HOURS: Final[int] = 6
+
 INSTAGRAM_HOSTS: Final[tuple[str, ...]] = ('instagram.com', 'www.instagram.com')
 TIKTOK_HOSTS: Final[tuple[str, ...]] = (
     'tiktok.com',

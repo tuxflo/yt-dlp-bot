@@ -21,6 +21,11 @@ Release date: September 9, 2026
 - Re-sending a series link downloads only what is missing: entries that already have a
   completed task, or one that is still queued, are skipped. Failed entries are
   re-queued, so recovering from a partly failed series is just sending the link again.
+- New `/clear <text>` command (alias `/forget`), admin only, dropping the stored task
+  history for everything whose URL contains the text, e.g. `/clear youtube`,
+  `/clear arte.tv`. Needed because a re-sent series link skips what was already
+  downloaded, and until now undoing that meant a manual `DELETE` against PostgreSQL.
+  Downloaded files are never touched, and downloads that are still running are kept.
 - Cap the downloaded resolution with a quality keyword before the URL, e.g.
   `/series MEDIUM <url>`: `LOW` 480p, `MEDIUM` 720p, `HIGH` 1080p, `BEST` unlimited
   (the default, unchanged). Without a cap, sites happily serve 4K — a YouTube episode

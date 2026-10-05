@@ -190,6 +190,37 @@ at 3840x2160 while `MEDIUM` gives H.264 at 1280x720 and roughly a tenth of the b
 Also available through the API as `"video_quality": "MEDIUM"` in the `POST /v1/tasks`
 payload.
 
+### Forgetting what was downloaded
+
+Since a re-sent link skips what is already downloaded, there has to be a way to undo
+that. `/clear` drops the stored task history for everything whose URL contains the given
+text:
+
+```
+/clear youtube
+/clear arte.tv
+/clear kika
+```
+
+```
+🧹 Forgot 6 task(s) matching youtube
+💾 Downloaded files were not touched
+↩️ Send the link again to download it anew
+```
+
+Notes:
+
+- **Only database rows are removed.** The downloaded files stay where they are, so if
+  you want a genuinely fresh copy, delete them as well — otherwise the re-download is
+  saved next to them with a timestamp appended to the filename.
+- Admin only, since it throws history away. `/forget` is an alias.
+- Downloads that are currently running are kept, so clearing cannot pull one out from
+  under the worker. Unfinished tasks older than `STALE_TASK_HOURS` count as orphaned
+  and are removed.
+- The text is matched case-insensitively against the whole stored URL, and is at least
+  three characters. `%` and `_` are matched literally, not as SQL wildcards, so there is
+  no way to accidentally clear everything.
+
 ### Finding the right series link
 
 The link must be one `yt-dlp` recognises as a playlist. That is usually the show's

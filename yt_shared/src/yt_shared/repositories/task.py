@@ -2,7 +2,7 @@ import logging
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 from uuid import UUID
 
 from sqlalchemy import Column, Row, delete, desc, distinct, func, insert, select
@@ -17,6 +17,11 @@ from yt_shared.schemas.media import BaseMedia, InbMediaPayload, Video
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult
+
+_UNFINISHED_STATUSES: Final[tuple[TaskStatus, ...]] = (
+    TaskStatus.PENDING,
+    TaskStatus.PROCESSING,
+)
 
 
 class TaskRepository:
@@ -63,16 +68,47 @@ class TaskRepository:
         if not urls:
             return set()
 
-        unfinished = (TaskStatus.PENDING, TaskStatus.PROCESSING)
         stmt = select(distinct(Task.url)).where(
             Task.url.in_(urls)
             & (
                 (Task.status == TaskStatus.DONE)
-                | (Task.status.in_(unfinished) & (Task.updated >= stale_before))
+                | (
+                    Task.status.in_(_UNFINISHED_STATUSES)
+                    & (Task.updated >= stale_before)
+                )
             )
         )
         result = await self._db.execute(stmt)
         return set(result.scalars().all())
+
+    async def count_running_tasks_by_url(
+        self, url_part: str, active_since: datetime
+    ) -> int:
+        """Count matching tasks that look like they are still being worked on."""
+        stmt = select(func.count(Task.id)).where(
+            Task.url.icontains(url_part, autoescape=True)
+            & Task.status.in_(_UNFINISHED_STATUSES)
+            & (Task.updated >= active_since)
+        )
+        result = await self._db.execute(stmt)
+        return result.scalar_one()
+
+    async def delete_tasks_by_url(self, url_part: str, active_since: datetime) -> int:
+        """Delete task history whose URL contains `url_part`, return the row count.
+
+        Tasks that are unfinished and were touched since `active_since` are kept, so
+        clearing the history cannot pull a running download out from under the worker.
+        Only database rows are removed; downloaded files are left alone.
+
+        Note that `Task.updated` is naive UTC, so `active_since` must be as well.
+        """
+        stmt = delete(Task).where(
+            Task.url.icontains(url_part, autoescape=True)
+            & ~(Task.status.in_(_UNFINISHED_STATUSES) & (Task.updated >= active_since))
+        )
+        result: CursorResult = await self._db.execute(stmt)
+        await self._db.commit()
+        return result.rowcount
 
     async def save_file_cache(self, file_id: str | UUID, cache: CacheSchema) -> None:
         stmt = insert(Cache).values(

@@ -1,5 +1,6 @@
 from pydantic import DirectoryPath, PositiveInt, field_validator
 from yt_shared.config import CommonSettings
+from yt_shared.constants import DEFAULT_STALE_TASK_HOURS
 
 
 class WorkerSettings(CommonSettings):
@@ -9,7 +10,7 @@ class WorkerSettings(CommonSettings):
     # An unfinished task untouched for this long is treated as orphaned, which happens
     # when the worker is restarted mid-download. Keep it comfortably above the time
     # your slowest download takes.
-    STALE_TASK_HOURS: PositiveInt = 6
+    STALE_TASK_HOURS: PositiveInt = DEFAULT_STALE_TASK_HOURS
     STORAGE_PATH: DirectoryPath
     # Save into "<STORAGE_PATH>/<host>/<series>" instead of flat into STORAGE_PATH.
     STORAGE_SUBDIRECTORIES: bool = True

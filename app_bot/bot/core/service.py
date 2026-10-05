@@ -1,12 +1,15 @@
 import logging
 import re
+from datetime import UTC, datetime, timedelta
 from itertools import product
 from urllib.parse import urljoin, urlparse
 
 from pyrogram.types import Message
-from yt_shared.constants import REMOVE_QUERY_PARAMS_HOSTS
+from yt_shared.constants import DEFAULT_STALE_TASK_HOURS, REMOVE_QUERY_PARAMS_HOSTS
+from yt_shared.db.session import get_db
 from yt_shared.enums import TaskSource, TelegramChatType, VideoQuality
 from yt_shared.rabbit.publisher import RmqPublisher
+from yt_shared.repositories.task import TaskRepository
 from yt_shared.schemas.media import InbMediaPayload
 from yt_shared.schemas.url import URL
 
@@ -44,6 +47,33 @@ class UrlService:
         if not is_sent:
             self._log.error('Failed to publish URL %s to message broker', url.url)
         return is_sent
+
+
+class TaskHistoryService:
+    """Query and prune the stored download task history."""
+
+    def __init__(self) -> None:
+        self._log = logging.getLogger(self.__class__.__name__)
+
+    async def forget_history(self, url_part: str) -> tuple[int, int]:
+        """Delete task history matching `url_part`, keeping anything still running.
+
+        Returns the number of deleted and of kept tasks. Downloaded files are not
+        touched; only the bot's memory of having downloaded them is.
+        """
+        # 'Task.updated' is naive UTC, so compare against a naive UTC point in time.
+        active_since = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+            hours=DEFAULT_STALE_TASK_HOURS
+        )
+        async for session in get_db():
+            repository = TaskRepository(db=session)
+            kept = await repository.count_running_tasks_by_url(
+                url_part=url_part, active_since=active_since
+            )
+            deleted = await repository.delete_tasks_by_url(
+                url_part=url_part, active_since=active_since
+            )
+        return deleted, kept
 
 
 class UrlParser:

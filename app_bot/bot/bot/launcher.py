@@ -20,6 +20,7 @@ class BotLauncher:
 
     REGEX_NOT_START_WITH_SLASH: str = r'^[^/]'
     SERIES_COMMANDS: ClassVar[list[str]] = ['series', 'season', 'playlist']
+    CLEAR_COMMANDS: ClassVar[list[str]] = ['clear', 'forget']
 
     def __init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
@@ -55,6 +56,13 @@ class BotLauncher:
             MessageHandler(
                 cb.on_series,
                 filters=filters.command(self.SERIES_COMMANDS)
+                & (filters.user(allowed_users) | filters.chat(allowed_users)),
+            )
+        )
+        self._bot.add_handler(
+            MessageHandler(
+                cb.on_clear,
+                filters=filters.command(self.CLEAR_COMMANDS)
                 & (filters.user(allowed_users) | filters.chat(allowed_users)),
             )
         )

@@ -1,3 +1,4 @@
+import html
 import logging
 
 from pyrogram.enums import ParseMode
@@ -6,8 +7,8 @@ from yt_shared.emoji import SUCCESS_EMOJI
 from yt_shared.enums import VideoQuality
 
 from bot.bot.client import VideoBotClient
-from bot.core.service import UrlParser, UrlService
-from bot.core.utils import bold, get_user_id
+from bot.core.service import TaskHistoryService, UrlParser, UrlService
+from bot.core.utils import bold, code, get_user_id
 
 
 class TelegramCallback:
@@ -24,17 +25,28 @@ class TelegramCallback:
         f'LOW 480p · MEDIUM 720p · HIGH 1080p · BEST unlimited (default)'
     )
 
+    _MIN_CLEAR_PATTERN_LEN: int = 3
+    _MSG_CLEAR_USAGE: str = (
+        f'{bold("Forget the download history for a host:")} /clear youtube\n'
+        f'Also works with e.g. {code("arte.tv")} or {code("kika")}. '
+        f'Matched against the stored URLs, at least '
+        f'{_MIN_CLEAR_PATTERN_LEN} characters, one word.'
+    )
+    _MSG_CLEAR_FORBIDDEN: str = f'🛑 {bold("Only admins can clear the history")}'
+
     def __init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
         self._url_parser = UrlParser()
         self._url_service = UrlService()
+        self._task_service = TaskHistoryService()
 
     @staticmethod
     async def on_start(client: VideoBotClient, message: Message) -> None:  # noqa: ARG004
         await message.reply(
             f'{bold("Send video URL to start processing")}\n'
             f'{bold("Send /series URL to download a whole series, season or playlist")}\n'
-            f'{bold("Add a quality to cap the resolution:")} /series MEDIUM URL',
+            f'{bold("Add a quality to cap the resolution:")} /series MEDIUM URL\n'
+            f'{bold("Forget a host, to download it again:")} /clear youtube',
             parse_mode=ParseMode.HTML,
             reply_to_message_id=message.id,
         )
@@ -71,6 +83,51 @@ class TelegramCallback:
             playlist=True,
             video_quality=video_quality,
         )
+
+    async def on_clear(self, client: VideoBotClient, message: Message) -> None:
+        """Forget the download history for a host, so its videos can be fetched again."""
+        self._log.debug('Received Telegram clear command: %s', message)
+        args = list(message.command[1:]) if message.command else []
+        url_part = args[0].strip() if args else ''
+
+        if len(url_part) < self._MIN_CLEAR_PATTERN_LEN or len(args) != 1:
+            await message.reply(
+                self._MSG_CLEAR_USAGE,
+                parse_mode=ParseMode.HTML,
+                reply_to_message_id=message.id,
+            )
+            return
+
+        if get_user_id(message) not in client.admin_users:
+            self._log.warning('Non-admin tried to clear history: %s', message.chat.id)
+            await message.reply(
+                self._MSG_CLEAR_FORBIDDEN,
+                parse_mode=ParseMode.HTML,
+                reply_to_message_id=message.id,
+            )
+            return
+
+        deleted, kept = await self._task_service.forget_history(url_part)
+        self._log.info(
+            'Cleared %d task(s) matching "%s", kept %d running', deleted, url_part, kept
+        )
+        await message.reply(
+            self._format_clear_result(url_part=url_part, deleted=deleted, kept=kept),
+            parse_mode=ParseMode.HTML,
+            reply_to_message_id=message.id,
+        )
+
+    def _format_clear_result(self, url_part: str, deleted: int, kept: int) -> str:
+        safe = html.escape(url_part)
+        if not deleted and not kept:
+            return f'🧹 {bold("Nothing stored")} for {code(safe)}'
+
+        lines = [f'🧹 {bold(f"Forgot {deleted} task(s)")} matching {code(safe)}']
+        if kept:
+            lines.append(f'⏳ {bold(f"Kept {kept}")} still running')
+        lines.append('💾 Downloaded files were not touched')
+        lines.append('↩️ Send the link again to download it anew')
+        return '\n'.join(lines)
 
     async def _process_urls(
         self,
