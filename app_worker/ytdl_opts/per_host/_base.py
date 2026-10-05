@@ -62,7 +62,8 @@ class AbstractHostConfig:
 
     # Shown when a '/series' URL of this host cannot be read as a playlist, to point
     # at the link that does work. Hosts where the overview page is easy to confuse
-    # with an episode listing should set it.
+    # with an episode listing should set it, or override 'playlist_url_hint()' to
+    # work the usable links out from the page that failed.
     PLAYLIST_URL_HINT: str | None = None
 
     CUSTOM_VIDEO_YTDL_OPTS: list[str] | None = None
@@ -160,6 +161,14 @@ class AbstractHostConfig:
                 fields.insert(0, capped)
             opts[idx + 1] = ','.join(fields)
         return tuple(opts)
+
+    def playlist_url_hint(self) -> str | None:
+        """Advice to append when this URL could not be read as a playlist.
+
+        Called on the failure path only, so an override may do real work such as
+        fetching the page to find the links that would work. It must never raise.
+        """
+        return self.PLAYLIST_URL_HINT
 
     def normalize_playlist_url(self) -> str:
         """Rewrite the URL into the form that lists a playlist most reliably.

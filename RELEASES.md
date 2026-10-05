@@ -43,6 +43,10 @@ Release date: September 9, 2026
   lists its videos while YouTube's own tracking query parameters are present, makes
   `yt-dlp` retry on incomplete responses, and reports the playlist title as literally
   "show", which then became the storage subdirectory name.
+- Sending a kika.de episode listing page to `/series` now answers with the show pages
+  that do work, resolved from the page itself, instead of only a generic example. KiKA
+  splits a show into one page per season and links those nowhere obvious, so they were
+  effectively impossible to find by hand.
 - Host configuration for the German KiKA (`kika.de`). KiKA offers every resolution both
   as HLS and as a plain MP4, and now the plain file is preferred: one request instead of
   several hundred fragments at the same resolution, which makes downloading a whole

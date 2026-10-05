@@ -86,8 +86,14 @@ class PlaylistExtractor:
 
     def _invalid_url_error(self, host_conf: AbstractHostConfig) -> str:
         """Build the error text, adding the host's hint about the right link."""
-        if host_conf.PLAYLIST_URL_HINT:
-            return f'{self._INVALID_URL_MSG}\n\n{host_conf.PLAYLIST_URL_HINT}'
+        try:
+            hint = host_conf.playlist_url_hint()
+        except Exception:
+            # The hint is a convenience; never let it replace the real failure.
+            self._log.exception('Failed to build the playlist URL hint')
+            hint = host_conf.PLAYLIST_URL_HINT
+        if hint:
+            return f'{self._INVALID_URL_MSG}\n\n{hint}'
         return self._INVALID_URL_MSG
 
     def _flatten_entries(self, meta: dict) -> list[PlaylistEntry]:

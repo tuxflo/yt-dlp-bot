@@ -245,9 +245,22 @@ For KiKA the show page works, the episode listing does not:
 | `kika.de/mako-einfach-meerjungfrau/mako-einfach-meerjungfrau-100` | ✅ the show page, all 68 episodes |
 | `kika.de/mako-einfach-meerjungfrau/videos/alle-folgen-302?season=2` | ❌ listing page, `yt-dlp` reads it as a single video id and gets a 404 |
 
-To find the show page, open any episode on kika.de and follow the show title link, or
-take the last path segment ending in a number from the show's own page
-(`<show-name>-100`).
+You do not have to find the show page yourself: sending the listing page works out which
+show pages exist behind it and names them in the reply, ready to paste. KiKA splits a
+show into one page per season, so a long-running series needs one `/series` per season:
+
+```
+Invalid series URL: no series, season or playlist could be read from this link.
+Use the show or series overview page, not an episode listing page.
+
+This page cannot be read, but these can. Send one per series:
+
+Durch die Wildnis - Griechenland
+/series https://www.kika.de/durch-die-wildnis/durch-die-wildnis-100
+
+Durch die Wildnis - Hohe Tatra
+/series https://www.kika.de/durch-die-wildnis/durch-die-wildnis-hohe-tatra-106
+```
 
 For YouTube, a legacy `youtube.com/show/VL<playlist_id>` link is rewritten to
 `youtube.com/playlist?list=<playlist_id>` automatically, since the `/show/` form lists
