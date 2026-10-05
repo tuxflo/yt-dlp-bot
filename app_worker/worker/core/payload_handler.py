@@ -17,7 +17,11 @@ from yt_shared.utils.tasks.tasks import create_task
 
 from worker.core.config import settings
 from worker.core.downloader import MediaDownloader
-from worker.core.exceptions import DownloadVideoServiceError, GeneralVideoServiceError
+from worker.core.exceptions import (
+    DownloadVideoServiceError,
+    GeneralVideoServiceError,
+    is_permanent_download_error,
+)
 from worker.core.media_service import MediaService
 from worker.core.playlist import Playlist, PlaylistEntry, PlaylistExtractor
 from ytdl_opts.per_host._registry import get_host_conf
@@ -96,6 +100,13 @@ class InboundPayloadHandler:
             media_payload (InbMediaPayload): The inbound media payload that failed.
 
         """
+        if is_permanent_download_error(str(err)):
+            self._log.error(
+                'Not retrying %s, the failure is permanent: %s', media_payload.url, err
+            )
+            await self._send_failed_video_download_task(err, media_payload)
+            return
+
         if media_payload.retry_count >= settings.CONSUMER_NUMBER_OF_RETRY:
             self._log.error(
                 'Giving up on %s after %d attempts',

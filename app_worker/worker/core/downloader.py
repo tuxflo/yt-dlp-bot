@@ -1,10 +1,11 @@
 import glob
 import logging
+import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ClassVar
+from typing import ClassVar, Final
 
 import yt_dlp
 from yt_shared.enums import DownMediaType
@@ -20,6 +21,38 @@ try:
     from ytdl_opts.user import FINAL_AUDIO_FORMAT, FINAL_THUMBNAIL_FORMAT
 except ImportError:
     from ytdl_opts.default import FINAL_AUDIO_FORMAT, FINAL_THUMBNAIL_FORMAT
+
+
+_ANSI_ESCAPE_RE: Final[re.Pattern[str]] = re.compile(r'\x1b\[[0-9;]*m')
+_ERROR_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r'^ERROR:\s*')
+
+
+class ErrorCapturingYoutubeDL(yt_dlp.YoutubeDL):
+    """'YoutubeDL' that remembers the errors it reported.
+
+    With '--ignore-errors' set, 'extract_info' returns None instead of raising, so the
+    reason for a failure is only printed and would otherwise be lost. The messages are
+    still reported as usual, they are additionally kept so the failure can say what
+    actually went wrong instead of "check logs".
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.reported_errors: list[str] = []
+
+    def report_error(self, message: str, *args, **kwargs) -> None:
+        cleaned = _ERROR_PREFIX_RE.sub(
+            '', _ANSI_ESCAPE_RE.sub('', str(message))
+        ).strip()
+        if cleaned and cleaned not in self.reported_errors:
+            self.reported_errors.append(cleaned)
+        super().report_error(message, *args, **kwargs)
+
+    def describe_errors(self, limit: int = 2) -> str | None:
+        """Join the reported errors into a single message, newest first."""
+        if not self.reported_errors:
+            return None
+        return ' | '.join(self.reported_errors[-limit:])
 
 
 class MediaDownloader:
@@ -61,7 +94,7 @@ class MediaDownloader:
                 media_type=media_type, curr_tmp_dir=curr_tmp_dir
             )
 
-            with yt_dlp.YoutubeDL(ytdl_opts_model.ytdl_opts) as ytdl:
+            with ErrorCapturingYoutubeDL(ytdl_opts_model.ytdl_opts) as ytdl:
                 self._log.info('Downloading "%s" to "%s"', url, curr_tmp_dir)
                 self._log.info(
                     'Downloading with options: %s', ytdl_opts_model.ytdl_opts
@@ -69,13 +102,17 @@ class MediaDownloader:
 
                 meta: dict | None = ytdl.extract_info(url, download=True)
                 if not meta:
-                    err_msg = 'Error during media download. Check logs.'
+                    err_msg = ytdl.describe_errors() or (
+                        'Error during media download. Check logs.'
+                    )
                     self._log.error('%s. Meta: %s', err_msg, meta)
                     raise MediaDownloaderError(err_msg)
 
                 current_files = list(curr_tmp_dir.iterdir())
                 if not current_files:
-                    err_msg = 'Nothing downloaded. Is URL valid?'
+                    err_msg = (
+                        ytdl.describe_errors() or 'Nothing downloaded. Is URL valid?'
+                    )
                     self._log.error(err_msg)
                     raise MediaDownloaderError(err_msg)
 
