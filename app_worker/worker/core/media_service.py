@@ -253,7 +253,13 @@ class MediaService:
             self._log.warning('Adding current timestamp to filename: %s', dst)
 
         self._log.info('Copying "%s" to storage "%s"', file.current_filepath, dst)
-        await asyncio.to_thread(shutil.copy2, file.current_filepath, dst)
+        # Copy the contents only, deliberately not 'copy2'. Copying the metadata too
+        # would carry the mode of the temporary file over to the storage, which can be
+        # owner-only and then unreadable by whatever serves the library, and its
+        # 'chmod' fails outright on filesystems that restrict it, such as a ZFS dataset
+        # with restricted ACL mode or a mounted SMB/NFS share. The timestamps are not
+        # worth preserving here: the source was created moments ago by the download.
+        await asyncio.to_thread(shutil.copyfile, file.current_filepath, dst)
         file.mark_as_saved_to_storage(storage_path=dst)
 
     def _err_file_cleanup(self, video: DownMedia) -> None:
