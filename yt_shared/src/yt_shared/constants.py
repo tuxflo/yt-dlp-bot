@@ -24,6 +24,11 @@ TWITTER_HOSTS: Final[tuple[str, ...]] = (
 )
 FACEBOOK_HOSTS: Final[tuple[str, ...]] = ('facebook.com', 'www.facebook.com')
 KIKA_HOSTS: Final[tuple[str, ...]] = ('kika.de', 'www.kika.de')
+ARD_HOSTS: Final[tuple[str, ...]] = (
+    'ardmediathek.de',
+    'www.ardmediathek.de',
+    'beta.ardmediathek.de',
+)
 YOUTUBE_HOSTS: Final[tuple[str, ...]] = (
     'youtube.com',
     'www.youtube.com',

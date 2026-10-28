@@ -66,6 +66,12 @@ class AbstractHostConfig:
     # work the usable links out from the page that failed.
     PLAYLIST_URL_HINT: str | None = None
 
+    # Same, for a single download: shown when the URL failed to download at all, to
+    # point at the link that does work. Hosts that publish the same video under a URL
+    # shape 'yt-dlp' has no extractor for should set it, or override
+    # 'download_url_hint()' to resolve the usable link from the one that failed.
+    DOWNLOAD_URL_HINT: str | None = None
+
     CUSTOM_VIDEO_YTDL_OPTS: list[str] | None = None
 
     ENCODE_AUDIO: bool | None = None
@@ -169,6 +175,14 @@ class AbstractHostConfig:
         fetching the page to find the links that would work. It must never raise.
         """
         return self.PLAYLIST_URL_HINT
+
+    def download_url_hint(self) -> str | None:
+        """Advice to append when this URL could not be downloaded.
+
+        Called on the failure path only, so an override may do real work such as
+        asking the site which link holds the actual video. It must never raise.
+        """
+        return self.DOWNLOAD_URL_HINT
 
     def normalize_playlist_url(self) -> str:
         """Rewrite the URL into the form that lists a playlist most reliably.

@@ -1,4 +1,5 @@
 from ytdl_opts.per_host._default import DefaultHost
+from ytdl_opts.per_host.ard import ArdHost
 from ytdl_opts.per_host.facebook import FacebookHost
 from ytdl_opts.per_host.instagram import InstagramHost
 from ytdl_opts.per_host.kika import KikaHost
@@ -7,6 +8,7 @@ from ytdl_opts.per_host.twitter import TwitterHost
 from ytdl_opts.per_host.youtube import YouTubeHost
 
 __all__ = [
+    'ArdHost',
     'DefaultHost',
     'FacebookHost',
     'InstagramHost',

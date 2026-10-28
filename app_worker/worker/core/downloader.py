@@ -80,6 +80,21 @@ class MediaDownloader:
             self._log.error('Failed to download %s', host_conf.url)
             raise
 
+    def _download_error(
+        self, host_conf: AbstractHostConfig, reported: str | None, fallback: str
+    ) -> str:
+        """Build the error text, adding the host's hint about the right link."""
+        err_msg = reported or fallback
+        try:
+            hint = host_conf.download_url_hint()
+        except Exception:
+            # The hint is a convenience; never let it replace the real failure.
+            self._log.exception('Failed to build the download URL hint')
+            hint = host_conf.DOWNLOAD_URL_HINT
+        if hint:
+            return f'{err_msg}\n\n{hint}'
+        return err_msg
+
     def _download(
         self, host_conf: AbstractHostConfig, media_payload: InbMediaPayload
     ) -> DownMedia:
@@ -102,16 +117,20 @@ class MediaDownloader:
 
                 meta: dict | None = ytdl.extract_info(url, download=True)
                 if not meta:
-                    err_msg = ytdl.describe_errors() or (
-                        'Error during media download. Check logs.'
+                    err_msg = self._download_error(
+                        host_conf=host_conf,
+                        reported=ytdl.describe_errors(),
+                        fallback='Error during media download. Check logs.',
                     )
                     self._log.error('%s. Meta: %s', err_msg, meta)
                     raise MediaDownloaderError(err_msg)
 
                 current_files = list(curr_tmp_dir.iterdir())
                 if not current_files:
-                    err_msg = (
-                        ytdl.describe_errors() or 'Nothing downloaded. Is URL valid?'
+                    err_msg = self._download_error(
+                        host_conf=host_conf,
+                        reported=ytdl.describe_errors(),
+                        fallback='Nothing downloaded. Is URL valid?',
                     )
                     self._log.error(err_msg)
                     raise MediaDownloaderError(err_msg)

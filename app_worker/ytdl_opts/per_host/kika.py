@@ -1,7 +1,5 @@
 import json
 import re
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Final
 from urllib.parse import urlsplit
@@ -10,6 +8,7 @@ from yt_shared.constants import KIKA_HOSTS
 from yt_shared.enums import DownMediaType
 
 from ytdl_opts.per_host._base import AbstractHostConfig, BaseHostConfModel
+from ytdl_opts.per_host._http import fetch_text
 from ytdl_opts.per_host._registry import HostConfRegistry
 
 _API_ROOT: Final[str] = 'https://www.kika.de/ackley/v1'
@@ -19,7 +18,6 @@ _EPISODE_API_URL_RE: Final[re.Pattern[str]] = re.compile(
 )
 
 _HTTP_TIMEOUT: Final[int] = 8
-_USER_AGENT: Final[str] = 'Mozilla/5.0'
 # Bounds on the work done while building the hint, so a failing download never turns
 # into a long crawl of the site.
 _MAX_HTTP_CALLS: Final[int] = 20
@@ -128,15 +126,7 @@ class KikaHost(AbstractHostConfig, metaclass=HostConfRegistry):
         if self._http_calls >= _MAX_HTTP_CALLS:
             return None
         self._http_calls += 1
-        request = urllib.request.Request(  # noqa: S310 # https URL built above.
-            url, headers={'User-Agent': _USER_AGENT}
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=_HTTP_TIMEOUT) as response:  # noqa: S310
-                return response.read().decode('utf-8', errors='replace')
-        except (urllib.error.URLError, OSError, ValueError) as err:
-            self._log.debug('Could not fetch "%s" for the hint: %s', url, err)
-            return None
+        return fetch_text(url, timeout=_HTTP_TIMEOUT)
 
     def _get_json(self, url: str) -> dict | None:
         raw = self._get_text(url)
